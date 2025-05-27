@@ -21,6 +21,8 @@ const HALF_LINE_PADDING: comptime_float = LINE_PADDING / 2.0;
 const BACKGROUND_COLOUR = raylib.Color.init(32, 31, 30, 0xFF);
 const TRANSPARENT_COLOUR = raylib.Color.init(0, 0, 0, 0);
 
+const BACKSPACE = 0x08;
+
 fn handle_keypress(
     _: std.mem.Allocator,
     user_input_buffer: *UTF8String,
@@ -29,7 +31,7 @@ fn handle_keypress(
     while (utf8_char > 0) {
         if (utf8_char >= 32 and utf8_char <= 125) {
             try user_input_buffer.append(utf8_char);
-        } else if (utf8_char == @intFromEnum(raylib.KeyboardKey.backspace)) {
+        } else if (utf8_char == BACKSPACE) {
             _ = user_input_buffer.pop();
         }
         utf8_char = raylib.getCharPressed();
