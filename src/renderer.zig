@@ -11,7 +11,7 @@ const SCREEN_HEIGHT = 450;
 
 const FONT_SIZE: comptime_float = 20.0;
 const FONT_SPACING: comptime_float = 5.0;
-const FONT_FILE_PATH = "/Users/jackkilrain/Library/Fonts/Monocraft.ttc";
+const FONT_FILE_PATH = "/Users/jackkilrain/projects/assets/monocraft/Monocraft.otf";
 
 const LINE_PADDING: comptime_int = 10;
 const HALF_LINE_PADDING: comptime_int = LINE_PADDING / 2;
@@ -75,19 +75,21 @@ pub fn render(
     lines: *ConcurrentArrayList(String),
     args: Args,
 ) anyerror!void {
-    std.debug.print("Rendering\n", .{});
     raylib.initWindow(
         SCREEN_WIDTH,
         SCREEN_HEIGHT,
         "de_menu",
     );
-    defer raylib.closeWindow();
     raylib.setWindowState(.{ .window_undecorated = true });
     raylib.setTargetFPS(60);
-    std.debug.print("Load font\n", .{});
-    const font = try raylib.loadFont(FONT_FILE_PATH);
+    // FIXME: Figure out why font doesn't work
+    const font = try raylib.loadFontEx(
+        FONT_FILE_PATH,
+        FONT_SIZE,
+        null,
+    );
+    // const font = try raylib.getFontDefault();
     defer raylib.unloadFont(font);
-    std.debug.print("Loaded font\n", .{});
     const font_dims = raylib.measureTextEx(
         font,
         "A",
@@ -101,10 +103,8 @@ pub fn render(
             @as(i32, @intFromFloat((font_dims.y + LINE_PADDING) * @as(f32, @floatFromInt(@min(line_count, args.lines))))),
         );
         if (line_count == 0) {
-            std.debug.print("Line count: {d}\n", .{line_count});
             continue;
         }
-        std.debug.print("Draw!\n", .{});
         raylib.beginDrawing();
         defer raylib.endDrawing();
         raylib.clearBackground(TRANSPARENT_COLOUR);

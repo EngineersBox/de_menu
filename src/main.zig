@@ -10,8 +10,11 @@ const String = std.ArrayList(u8);
 
 const DELIMITER: comptime_int = if (builtin.target.os.tag == .windows) '\r' else '\n';
 
-fn run(allocator: std.mem.Allocator, lines: *ConcurrentArrayList(String)) anyerror!void {
-    var stdin: std.fs.File = std.io.getStdIn();
+fn run(
+    allocator: std.mem.Allocator,
+    stdin: std.fs.File,
+    lines: *ConcurrentArrayList(String),
+) anyerror!void {
     var reader = stdin.reader();
     while (true) {
         var line: String = String.init(allocator);
@@ -67,16 +70,11 @@ pub fn main() anyerror!void {
         }
         lines.deinit();
     }
-    var render_thread = try std.Thread.spawn(
-        .{ .allocator = allocator },
-        render,
-        .{ allocator, &lines, args },
-    );
-    const run_thread = try std.Thread.spawn(
+    var run_thread = try std.Thread.spawn(
         .{ .allocator = allocator },
         run,
-        .{ allocator, &lines },
+        .{ allocator, std.io.getStdIn(), &lines },
     );
     run_thread.detach();
-    render_thread.join();
+    try render(allocator, &lines, args);
 }
