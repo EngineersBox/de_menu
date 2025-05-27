@@ -82,7 +82,6 @@ pub fn render(
     );
     raylib.setWindowState(.{ .window_undecorated = true });
     raylib.setTargetFPS(60);
-    // FIXME: Figure out why font doesn't work
     const font = try raylib.loadFontEx(
         FONT_FILE_PATH,
         FONT_SIZE,
