@@ -6,7 +6,7 @@ pub const Args: type = struct {
     lines: usize,
     prompt: ?[]const u8,
 
-    pub fn from_stdin_allocated(allocator: *std.mem.Allocator) anyerror!@This() {
+    pub fn from_stdin_allocated(allocator: std.mem.Allocator) anyerror!@This() {
         const params = comptime clap.parseParamsComptime(
             \\ -l, --lines <usize>        lists items vertically, with the given number of lines
             \\ -p, --prompt <str>         defines the prompt to be displayed to the left of the input field
@@ -25,9 +25,6 @@ pub const Args: type = struct {
             .lines = 20,
             .prompt = null
         };
-        if (res.args.help != 0) {
-            std.debug.print("--help\n", .{});
-        }
         if (res.args.lines) |lines| {
             args.lines = lines;
         }

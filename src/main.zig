@@ -1,15 +1,16 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const raylib = @import("raylib");
 const raygui = @import("raygui");
 
+const render = @import("renderer.zig").render;
 const Args = @import("args.zig").Args;
 const ConcurrentArrayList = @import("containers/concurrent_array_list.zig").ConcurrentArrayList;
 const String = std.ArrayList(u8);
 
+const DELIMITER: comptime_int = if (builtin.target.os.tag == .windows) '\r' else '\n';
 
-const DELIMITER: comptime_int = if (std.builtin.os.tag == .windows) '\r' else '\n';
-
-fn run(allocator: *std.mem.Allocator, lines: *ConcurrentArrayList(String)) anyerror!void {
+fn run(allocator: std.mem.Allocator, lines: *ConcurrentArrayList(String)) anyerror!void {
     var stdin: std.fs.File = std.io.getStdIn();
     var reader = stdin.reader();
     while (true) {
@@ -20,10 +21,6 @@ fn run(allocator: *std.mem.Allocator, lines: *ConcurrentArrayList(String)) anyer
             null,
         ) catch |err| switch (err) {
             error.EndOfStream => break, 
-            error.NoEofError => {
-                // More to read, file not closed, move to next iteration
-                continue;
-            },
             error.StreamTooLong => {
                 // Make do with what we have
                 @panic("Input stream too long");
@@ -34,20 +31,19 @@ fn run(allocator: *std.mem.Allocator, lines: *ConcurrentArrayList(String)) anyer
         };
         // I forgot about this originall, this gist saved the pain and jogged my
         // memory: https://gist.github.com/doccaico/4e15cacaf06279ab29c8aacb3f2c9478
-        const trimmed_line = if (std.builtin.os.tag == .windows) {
+        const trimmed_line = if (builtin.target.os.tag == .windows)
             // Nuke prefixing newlines, since we match a EOL
             // as CR on windows, which follows with LF after.
-            line.fromOwnedSlice(
+            return line.fromOwnedSlice(
                 allocator,
                 std.mem.trimLeft(
                     u8,
                     try line.toOwnedSlice(),
                     "\n"
                 ),
-            );
-        } else {
+            )
+        else
             line;
-        };
         try lines.append(trimmed_line);
     }
 }
@@ -63,7 +59,7 @@ pub fn main() anyerror!void {
     }
     const allocator = gpa.allocator();
     const args: Args = try Args.from_stdin_allocated(allocator);
-    const lines = ConcurrentArrayList(String){};
+    var lines = ConcurrentArrayList(String).init(allocator);
     defer {
         lines.rwlock.lock();
         for (lines.array_list.items) |*line| {
@@ -74,13 +70,13 @@ pub fn main() anyerror!void {
     var render_thread = try std.Thread.spawn(
         .{ .allocator = allocator },
         render,
-        .{ allocator, lines, args },
+        .{ allocator, &lines, args },
     );
-    const  run_thread = try std.Thread.spawn(
+    const run_thread = try std.Thread.spawn(
         .{ .allocator = allocator },
         run,
-        .{ allocator, lines },
+        .{ allocator, &lines },
     );
-    run_thread.join();
+    run_thread.detach();
     render_thread.join();
 }
