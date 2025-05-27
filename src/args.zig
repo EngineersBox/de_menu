@@ -2,6 +2,7 @@ const std = @import("std");
 const clap = @import("clap");
 
 pub const Args: type = struct {
+    allocator: *const std.mem.Allocator,
     // TODO: Add the rest of dmenu options
     lines: usize,
     prompt: ?[]const u8,
@@ -22,6 +23,7 @@ pub const Args: type = struct {
         };
         defer res.deinit();
         var args = Args {
+            .allocator = &allocator,
             .lines = 20,
             .prompt = null
         };
@@ -29,9 +31,15 @@ pub const Args: type = struct {
             args.lines = lines;
         }
         if (res.args.prompt) |prompt| {
-            args.prompt = prompt;
+            args.prompt = try allocator.dupe(u8, prompt);
         }
         return args;
+    }
+
+    pub fn deinit(self: *@This()) void {
+        if (self.prompt) |prompt| {
+            self.allocator.free(prompt);
+        }
     }
 };
 

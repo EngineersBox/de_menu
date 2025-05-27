@@ -14,9 +14,10 @@ fn run(
     allocator: std.mem.Allocator,
     stdin: std.fs.File,
     lines: *ConcurrentArrayList(String),
+    should_terminate: *volatile bool,
 ) anyerror!void {
     var reader = stdin.reader();
-    while (true) {
+    while (!should_terminate.*) {
         var line: String = String.init(allocator);
         reader.streamUntilDelimiter(
             line.writer(),
@@ -49,6 +50,7 @@ fn run(
             line;
         try lines.append(trimmed_line);
     }
+    std.debug.print("Run thread done\n", .{});
 }
 
 pub fn main() anyerror!void {
@@ -61,20 +63,27 @@ pub fn main() anyerror!void {
         }
     }
     const allocator = gpa.allocator();
-    const args: Args = try Args.from_stdin_allocated(allocator);
+    var args: Args = try Args.from_stdin_allocated(allocator);
     var lines = ConcurrentArrayList(String).init(allocator);
+    var should_terminate: bool = false;
+    var run_thread = try std.Thread.spawn(
+        .{ .allocator = allocator },
+        run,
+        .{ allocator, std.io.getStdIn(), &lines, &should_terminate },
+    );
     defer {
+        should_terminate = true;
+        run_thread.join();
+        // Must happen after join to avoid usage
+        // of deinitialised ConcurrentArrayList
+        // during thread termination
+        args.deinit();
         lines.rwlock.lock();
         for (lines.array_list.items) |*line| {
             line.*.deinit();
         }
+        lines.rwlock.unlock();
         lines.deinit();
     }
-    var run_thread = try std.Thread.spawn(
-        .{ .allocator = allocator },
-        run,
-        .{ allocator, std.io.getStdIn(), &lines },
-    );
-    run_thread.detach();
     try render(allocator, &lines, args);
 }
