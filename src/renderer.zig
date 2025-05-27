@@ -21,8 +21,6 @@ const HALF_LINE_PADDING: comptime_float = LINE_PADDING / 2.0;
 const BACKGROUND_COLOUR = raylib.Color.init(32, 31, 30, 0xFF);
 const TRANSPARENT_COLOUR = raylib.Color.init(0, 0, 0, 0);
 
-const BACKSPACE = 0x08;
-
 fn handle_keypress(
     _: std.mem.Allocator,
     user_input_buffer: *UTF8String,
@@ -31,7 +29,8 @@ fn handle_keypress(
     while (utf8_char > 0) {
         if (utf8_char >= 32 and utf8_char <= 125) {
             try user_input_buffer.append(utf8_char);
-        } else if (utf8_char == BACKSPACE) {
+        } else if (utf8_char == @intFromEnum(raylib.KeyboardKey.backspace)) {
+            // FIXME: Figure out UTF-8 encoding of backspace
             _ = user_input_buffer.pop();
         }
         utf8_char = raylib.getCharPressed();
@@ -75,6 +74,10 @@ fn render_vertical(
         FONT_SPACING,
         FONT_COLOUR,
     );
+    // TODO:
+    // 1. Draw flashing cursor afterwards
+    // 2. Check if text is longer than input field, show only truncated ending if so
+
     // Lines
     var y_pos: i32 = line_height;
     for (0..@min(args.lines, lines.count())) |i| {
