@@ -1,4 +1,19 @@
 #!/usr/bin/env bash
 
+set -o errexit -o pipefail -o noclobber -o nounset
+
+PWD="$(pwd)"
+PROJECT_DIR_NAME="de_menu"
+
+# Ensure we work from the project base dir to avoid
+# weird mounting behaviour when running container
+case "$(basename "$PWD")" in
+  "$PROJECT_DIR_NAME") ;;
+  *)
+    echo "[ERROR] This script must be run from the $PROJECT_DIR_NAME directory, not $PWD"
+    exit 1
+    ;;
+esac
+
 zig build
 ls -t1 | zig-out/bin/de_menu

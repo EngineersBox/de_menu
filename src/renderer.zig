@@ -5,6 +5,7 @@ const raygui = @import("raygui");
 const Args = @import("args.zig").Args;
 const ConcurrentArrayList = @import("containers/concurrent_array_list.zig").ConcurrentArrayList;
 const String = std.ArrayList(u8);
+const UTF8String = std.ArrayList(i32);
 
 const SCREEN_WIDTH = 800;
 const SCREEN_HEIGHT = 450;
@@ -12,17 +13,27 @@ const SCREEN_HEIGHT = 450;
 const FONT_SIZE: comptime_float = 20.0;
 const FONT_SPACING: comptime_float = 1.0;
 const FONT_FILE_PATH = "/Users/jackkilrain/projects/assets/monocraft/Monocraft.otf";
+const FONT_COLOUR = raylib.Color.ray_white;
 
-const LINE_PADDING: comptime_int = 10;
-const HALF_LINE_PADDING: comptime_int = LINE_PADDING / 2;
+const LINE_PADDING: comptime_float = 1.0;
+const HALF_LINE_PADDING: comptime_float = LINE_PADDING / 2.0;
 
 const BACKGROUND_COLOUR = raylib.Color.init(32, 31, 30, 0xFF);
 const TRANSPARENT_COLOUR = raylib.Color.init(0, 0, 0, 0);
 
 fn handle_keypress(
     _: std.mem.Allocator,
+    user_input_buffer: *UTF8String,
 ) anyerror!void {
-
+    var utf8_char: i32 = raylib.getCharPressed();
+    while (utf8_char > 0) {
+        if (utf8_char >= 32 and utf8_char <= 125) {
+            try user_input_buffer.append(utf8_char);
+        } else if (utf8_char == @intFromEnum(raylib.KeyboardKey.backspace)) {
+            _ = user_input_buffer.pop();
+        }
+        utf8_char = raylib.getCharPressed();
+    }
 }
 
 fn render_horizontal(
@@ -41,10 +52,11 @@ fn render_vertical(
     args: *const Args,
     font: *const raylib.Font,
     font_height: f32,
+    user_input_buffer: *UTF8String,
 ) anyerror!void {
     // TODO: Handle prompt text on left offsetting
     //       lines on X axis by width of prompt text
-    const line_height: i32 = @as(i32, @intFromFloat(font_height)) + LINE_PADDING;
+    const line_height: i32 = @intFromFloat(font_height + LINE_PADDING);
     // Fuzzy finding
     raylib.drawRectangle(
         0,
@@ -53,13 +65,13 @@ fn render_vertical(
         line_height,
         BACKGROUND_COLOUR,
     );
-    raylib.drawTextEx(
+    raylib.drawTextCodepoints(
         font.*,
-        "|",
+        user_input_buffer.items,
         raylib.Vector2.init(10, HALF_LINE_PADDING),
         FONT_SIZE,
         FONT_SPACING,
-        .ray_white,
+        FONT_COLOUR,
     );
     // Lines
     var y_pos: i32 = line_height;
@@ -80,10 +92,10 @@ fn render_vertical(
         raylib.drawTextEx(
             font.*,
             line,
-            raylib.Vector2.init(10, @floatFromInt(y_pos + HALF_LINE_PADDING)),
+            raylib.Vector2.init(10, @as(f32, @floatFromInt(y_pos)) + HALF_LINE_PADDING),
             FONT_SIZE,
             FONT_SPACING,
-            .ray_white,
+            FONT_COLOUR,
         );
         y_pos += line_height;
     }
@@ -107,7 +119,9 @@ pub fn render(
         null,
     );
     defer raylib.unloadFont(font);
-    const line_size: i32 = font.baseSize + LINE_PADDING;
+    const line_size: i32 = font.baseSize + @as(i32, @intFromFloat(LINE_PADDING));
+    var user_input_buffer = UTF8String.init(allocator);
+    defer user_input_buffer.deinit();
     while (!raylib.windowShouldClose()) {
         const line_count = lines.count();
         raylib.setWindowSize(
@@ -120,13 +134,14 @@ pub fn render(
         raylib.beginDrawing();
         defer raylib.endDrawing();
         raylib.clearBackground(TRANSPARENT_COLOUR);
+        try handle_keypress(allocator, &user_input_buffer);
         try render_vertical(
             allocator,
             lines,
             &args,
             &font,
             @floatFromInt(font.baseSize),
+            &user_input_buffer,
         );
-        try handle_keypress(allocator);
     }
 }
