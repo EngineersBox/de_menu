@@ -10,7 +10,7 @@ const SCREEN_WIDTH = 800;
 const SCREEN_HEIGHT = 450;
 
 const FONT_SIZE: comptime_float = 20.0;
-const FONT_SPACING: comptime_float = 5.0;
+const FONT_SPACING: comptime_float = 1.0;
 const FONT_FILE_PATH = "/Users/jackkilrain/projects/assets/monocraft/Monocraft.otf";
 
 const LINE_PADDING: comptime_int = 10;
