@@ -25,7 +25,7 @@ pub const InputData: type = struct {
     allocator: std.mem.Allocator,
     lines: *ConcurrentArrayList(String),
     filtered_line_indices: std.ArrayList(usize),
-    cursor_line: usize,
+    cursor_line: ?usize,
     buffer: UnicodeString,
 
     pub fn new(allocator: std.mem.Allocator, lines: *ConcurrentArrayList(String)) @This() {
@@ -45,16 +45,33 @@ pub const InputData: type = struct {
 
     pub fn selectCursorLine(self: *@This()) anyerror!void {
         self.buffer.clearAndFree();
-        std.debug.assert(self.cursor_line < self.lines.count());
-        const line: *const String = &self.lines.get(self.cursor_line);
+        const cursor_line: usize = if (self.cursor_line) |c| c else return;
+        const line: *const String = &self.lines.get(cursor_line);
         const codepoints: []i32 = try raylib.loadCodepoints(line.items);
         try self.buffer.appendSlice(codepoints);
         raylib.unloadCodepoints(codepoints);
     }
 
     pub fn shiftCursorLine(self: *@This(), shift: isize) void {
-        const next: usize = @intCast(@max(0, @as(isize, @intCast(self.cursor_line)) + shift));
-        self.cursor_line = @min(next, self.lines.count() -| 1);
+        const cursor_line: isize = if (self.cursor_line) |c| @intCast(c) else 0;
+        const line_count: usize = if (self.buffer.items.len == 0)
+            // Not filtered
+            self.lines.count()
+        else 
+            // Filtered
+            self.filtered_line_indices.items.len;
+        if (line_count == 0) {
+            self.cursor_line = null;
+            return;
+        }
+        self.cursor_line = @min(
+            line_count -| 1,
+            @as(usize, @intCast(@max(
+                0,
+                cursor_line + shift
+            )))
+        );
+        std.debug.print("Cursor line: {} -> {}\n", .{cursor_line, self.cursor_line.?});
     }
 
     pub fn filterLines(self: *@This(), filter: Filter) !void {
@@ -62,6 +79,7 @@ pub const InputData: type = struct {
         if (self.buffer.items.len == 0) {
             return;
         }
+        self.cursor_line = 0;
         self.filtered_line_indices.clearAndFree();
         self.lines.rwlock.lockShared();
         defer self.lines.rwlock.unlockShared();
@@ -70,7 +88,8 @@ pub const InputData: type = struct {
                 try self.filtered_line_indices.append(i);
             }
         }
-        self.cursor_line = @min(self.cursor_line, self.filtered_line_indices.items.len -| 1);
+        // self.shiftCursorLine(0);
+        self.cursor_line = null;
     }
 
 };

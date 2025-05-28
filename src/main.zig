@@ -50,7 +50,6 @@ fn run(
             line;
         try lines.append(trimmed_line);
     }
-    std.debug.print("Run thread done\n", .{});
 }
 
 pub fn main() anyerror!void {

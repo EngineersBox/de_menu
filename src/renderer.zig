@@ -6,8 +6,8 @@ const Args = @import("args.zig").Args;
 const ConcurrentArrayList = @import("containers/concurrent_array_list.zig").ConcurrentArrayList;
 const String = std.ArrayList(u8);
 const InputData = @import("data.zig").InputData;
-const Filter= @import("data.zig").Filter;
-const Filters= @import("data.zig").Filters;
+const Filter = @import("data.zig").Filter;
+const Filters = @import("data.zig").Filters;
 
 const SCREEN_WIDTH = 800;
 const SCREEN_HEIGHT = 450;
@@ -23,9 +23,9 @@ const LINE_FILTER: Filter = Filters.stringContains;
 
 const BACKGROUND_COLOUR = raylib.Color.init(32, 31, 30, 0xFF);
 const SELECTED_LINE_COLOUR = raylib.Color.dark_blue;
-const TRANSPARENT_COLOUR = raylib.Color.init(0, 0, 0, 0);
 
 const KEY_DEBOUNCE_RATE_MS: comptime_float = 0.05;
+const MOVE_DEBOUNCE_RATE_MS: comptime_float = 0.1;
 
 threadlocal var last_time: f64 = 0;
 
@@ -35,22 +35,19 @@ fn handleKeypress(
     input: *InputData,
 ) anyerror!void {
     var utf8_char: i32 = raylib.getCharPressed();
-    const updated_buffer: bool = utf8_char > 0;
+    var updated_buffer: bool = utf8_char > 0;
     while (utf8_char > 0) {
         if (utf8_char >= 32 and utf8_char <= 125) {
             try input.buffer.append(utf8_char);
         }
         utf8_char = raylib.getCharPressed();
     }
-    if (updated_buffer) {
-        try input.filterLines(LINE_FILTER);
-    }
     const next_key: raylib.KeyboardKey = if (args.isVertical()) raylib.KeyboardKey.down else raylib.KeyboardKey.right;
     const prev_key: raylib.KeyboardKey = if (args.isVertical()) raylib.KeyboardKey.up else raylib.KeyboardKey.left;
-    if (raylib.isKeyDown(next_key) and raylib.getTime() - last_time >= KEY_DEBOUNCE_RATE_MS) {
+    if (raylib.isKeyDown(next_key) and raylib.getTime() - last_time >= MOVE_DEBOUNCE_RATE_MS) {
         last_time = raylib.getTime();
         input.shiftCursorLine(1);
-    } else if (raylib.isKeyDown(prev_key) and raylib.getTime() - last_time >= KEY_DEBOUNCE_RATE_MS) {
+    } else if (raylib.isKeyDown(prev_key) and raylib.getTime() - last_time >= MOVE_DEBOUNCE_RATE_MS) {
         last_time = raylib.getTime();
         input.shiftCursorLine(-1);
     } else if (raylib.isKeyPressed(raylib.KeyboardKey.tab)) {
@@ -59,6 +56,10 @@ fn handleKeypress(
     } else if (raylib.isKeyDown(raylib.KeyboardKey.backspace) and raylib.getTime() - last_time >= KEY_DEBOUNCE_RATE_MS) {
         last_time = raylib.getTime();
         _ = input.buffer.pop();
+        updated_buffer = true;
+    }
+    if (updated_buffer) {
+        try input.filterLines(LINE_FILTER);
     }
 }
 
@@ -154,7 +155,7 @@ fn renderVertical(
         }
     } else {
         // Filtered
-        for (0.. @min(args.lines, input.filtered_line_indices.items.len)) |i| {
+        for (0..@min(args.lines, input.filtered_line_indices.items.len)) |i| {
             try renderVerticalLine(
                 allocator,
                 input,
@@ -174,6 +175,7 @@ pub fn render(
     lines: *ConcurrentArrayList(String),
     args: Args,
 ) anyerror!void {
+    raylib.setConfigFlags(.{ .window_transparent = true });
     raylib.initWindow(
         SCREEN_WIDTH,
         SCREEN_HEIGHT,
@@ -191,17 +193,20 @@ pub fn render(
     var input: InputData = InputData.new(allocator, lines);
     defer input.deinit();
     while (!raylib.windowShouldClose()) {
-        const line_count = lines.count();
+        const line_count = if (input.buffer.items.len == 0)
+            input.lines.count()
+        else
+            input.filtered_line_indices.items.len;
         raylib.setWindowSize(
             SCREEN_WIDTH,
-            line_size * @as(i32, @intCast(@min(line_count, args.lines))),
+            line_size * @as(i32, @intCast(1 + @min(line_count, args.lines))),
         );
         if (line_count == 0) {
             continue;
         }
         raylib.beginDrawing();
         defer raylib.endDrawing();
-        raylib.clearBackground(TRANSPARENT_COLOUR);
+        raylib.clearBackground(raylib.Color.blank);
         try handleKeypress(allocator, &args, &input);
         try renderVertical(
             allocator,
