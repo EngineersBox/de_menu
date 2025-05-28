@@ -51,7 +51,9 @@ pub const InputData: type = struct {
             cursor_line = self.filtered_line_indices.items[cursor_line];
         }
         const line: *const String = &self.lines.get(cursor_line);
+        // Filtered have changed, so previous cursor line is invalid
         self.cursor_line = 0;
+        // Convert to unicode
         const codepoints: []i32 = try raylib.loadCodepoints(line.items);
         try self.buffer.appendSlice(codepoints);
         raylib.unloadCodepoints(codepoints);

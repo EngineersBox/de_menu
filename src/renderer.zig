@@ -29,6 +29,14 @@ const MOVE_DEBOUNCE_RATE_MS: comptime_float = 0.1;
 
 threadlocal var last_time: f64 = 0;
 
+fn debounce(rate: f64) bool {
+    if (raylib.getTime() - last_time >= rate) {
+        last_time = raylib.getTime();
+        return true;
+    }
+    return false;
+}
+
 fn handleKeypress(
     _: std.mem.Allocator,
     args: *const Args,
@@ -44,17 +52,13 @@ fn handleKeypress(
     }
     const next_key: raylib.KeyboardKey = if (args.isVertical()) raylib.KeyboardKey.down else raylib.KeyboardKey.right;
     const prev_key: raylib.KeyboardKey = if (args.isVertical()) raylib.KeyboardKey.up else raylib.KeyboardKey.left;
-    if (raylib.isKeyDown(next_key) and raylib.getTime() - last_time >= MOVE_DEBOUNCE_RATE_MS) {
-        last_time = raylib.getTime();
+    if (raylib.isKeyDown(next_key) and debounce(MOVE_DEBOUNCE_RATE_MS)) {
         input.shiftCursorLine(1);
-    } else if (raylib.isKeyDown(prev_key) and raylib.getTime() - last_time >= MOVE_DEBOUNCE_RATE_MS) {
-        last_time = raylib.getTime();
+    } else if (raylib.isKeyDown(prev_key) and debounce(MOVE_DEBOUNCE_RATE_MS)) {
         input.shiftCursorLine(-1);
     } else if (raylib.isKeyPressed(raylib.KeyboardKey.tab)) {
-        last_time = raylib.getTime();
         try input.selectCursorLine();
-    } else if (raylib.isKeyDown(raylib.KeyboardKey.backspace) and raylib.getTime() - last_time >= KEY_DEBOUNCE_RATE_MS) {
-        last_time = raylib.getTime();
+    } else if (raylib.isKeyDown(raylib.KeyboardKey.backspace) and debounce(KEY_DEBOUNCE_RATE_MS)) {
         _ = input.buffer.pop();
         updated_buffer = true;
     }
