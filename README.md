@@ -26,7 +26,7 @@ Traversing the list, and selecting the `build.zig` entry, and pressing enter the
 
 ## Build and Run
 
-Normal zig build shenanigans:
+Ensure you have raylib on your system and it is discoverable. Then just normal zig build shenanigans from there:
 
 ```bash
 zig build
