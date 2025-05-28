@@ -22,7 +22,7 @@ const HALF_LINE_PADDING: comptime_float = LINE_PADDING / 2.0;
 const LINE_FILTER: Filter = Filters.stringContains;
 const LINE_TEXT_OFFSET: comptime_float = 10.0;
 
-const PROMPT_COLOUR = raylib.Color.green;
+const PROMPT_COLOUR = raylib.Color.dark_blue;
 
 const BACKGROUND_COLOUR = raylib.Color.init(32, 31, 30, 0xFF);
 const SELECTED_LINE_COLOUR = raylib.Color.dark_blue;
@@ -56,7 +56,7 @@ fn debounceInitial(rate: f64) bool {
 fn handleKeypress(
     _: std.mem.Allocator,
     input: *InputData,
-) anyerror!void {
+) anyerror!bool {
     var unicode_char: i32 = raylib.getCharPressed();
     var updated_buffer: bool = unicode_char > 0;
     while (unicode_char > 0) {
@@ -66,6 +66,7 @@ fn handleKeypress(
         }
         unicode_char = raylib.getCharPressed();
     }
+    var enter_pressed: bool = false;
     if (raylib.isKeyDown(raylib.KeyboardKey.down) and debounce(MOVE_DEBOUNCE_RATE_MS)) {
         input.shiftCursorLine(1);
     } else if (raylib.isKeyDown(raylib.KeyboardKey.up) and debounce(MOVE_DEBOUNCE_RATE_MS)) {
@@ -77,6 +78,12 @@ fn handleKeypress(
     } else if (raylib.isKeyPressed(raylib.KeyboardKey.tab) and debounce(KEY_DEBOUNCE_RATE_MS)) {
         try input.selectCursorLine();
         updated_buffer = true;
+    } else if (raylib.isKeyPressed(raylib.KeyboardKey.enter) and debounce(KEY_DEBOUNCE_RATE_MS)) {
+        enter_pressed = true;
+    } else if (raylib.isKeyPressed(raylib.KeyboardKey.escape) and debounce(KEY_DEBOUNCE_RATE_MS)) {
+        input.buffer.clearAndFree();
+        input.buffer_col = 0;
+        enter_pressed = true;
     }
     if (input.buffer_col > 0) {
         if (raylib.isKeyPressed(raylib.KeyboardKey.backspace) and debounceInitial(KEY_DEBOUNCE_RATE_MS)) {
@@ -96,6 +103,7 @@ fn handleKeypress(
     if (updated_buffer) {
         try input.filterLines(LINE_FILTER);
     }
+    return enter_pressed;
 }
 
 fn renderHorizontal(
@@ -295,17 +303,20 @@ fn renderVertical(
 
 pub fn render(
     allocator: std.mem.Allocator,
-    lines: *ConcurrentArrayList(String),
+    input: *InputData,
     args: Args,
 ) anyerror!void {
-    raylib.setConfigFlags(.{ .window_transparent = true });
+    raylib.setConfigFlags(.{
+        .window_transparent = true,
+        .window_undecorated = true,
+    });
+    raylib.setTraceLogLevel(raylib.TraceLogLevel.err);
     raylib.initWindow(
         SCREEN_WIDTH,
         SCREEN_HEIGHT,
         "de_menu",
     );
-    raylib.setWindowState(.{ .window_undecorated = true });
-    raylib.setTargetFPS(60);
+    defer raylib.closeWindow();
     const font = try raylib.loadFontEx(
         FONT_FILE_PATH,
         FONT_SIZE,
@@ -313,9 +324,7 @@ pub fn render(
     );
     defer raylib.unloadFont(font);
     const line_size: i32 = font.baseSize + @as(i32, @intFromFloat(LINE_PADDING));
-    var input: InputData = InputData.new(allocator, lines);
-    defer input.deinit();
-    while (!raylib.windowShouldClose()) {
+    while (true) {
         const line_count = if (input.buffer.items.len == 0)
             input.lines.count()
         else
@@ -327,13 +336,15 @@ pub fn render(
         raylib.beginDrawing();
         defer raylib.endDrawing();
         raylib.clearBackground(raylib.Color.blank);
-        try handleKeypress(allocator, &input);
+        if (try handleKeypress(allocator, input)) {
+            break;
+        }
         try renderVertical(
             allocator,
             &args,
             &font,
             @floatFromInt(font.baseSize),
-            &input,
+            input,
         );
     }
 }

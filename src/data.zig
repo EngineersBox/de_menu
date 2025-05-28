@@ -23,16 +23,16 @@ pub const Filters: type = struct {
 
 pub const InputData: type = struct {
     allocator: std.mem.Allocator,
-    lines: *ConcurrentArrayList(String),
+    lines: ConcurrentArrayList(String),
     filtered_line_indices: std.ArrayList(usize),
     cursor_line: ?usize,
     buffer_col: usize,
     buffer: UnicodeString,
 
-    pub fn new(allocator: std.mem.Allocator, lines: *ConcurrentArrayList(String)) @This() {
+    pub fn new(allocator: std.mem.Allocator) @This() {
         return @This(){
             .allocator = allocator,
-            .lines = lines,
+            .lines = ConcurrentArrayList(String).init(allocator),
             .filtered_line_indices = std.ArrayList(usize).init(allocator),
             .cursor_line = 0,
             .buffer_col = 0,
@@ -41,8 +41,14 @@ pub const InputData: type = struct {
     }
 
     pub fn deinit(self: *@This()) void {
-        self.buffer.deinit();
+        self.lines.rwlock.lock();
+        for (self.lines.array_list.items) |*line| {
+            line.*.deinit();
+        }
+        self.lines.rwlock.unlock();
+        self.lines.deinit();
         self.filtered_line_indices.deinit();
+        self.buffer.deinit();
     }
 
     pub fn selectCursorLine(self: *@This()) anyerror!void {

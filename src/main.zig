@@ -5,6 +5,7 @@ const raygui = @import("raygui");
 
 const render = @import("renderer.zig").render;
 const Args = @import("args.zig").Args;
+const InputData = @import("data.zig").InputData;
 const ConcurrentArrayList = @import("containers/concurrent_array_list.zig").ConcurrentArrayList;
 const String = std.ArrayList(u8);
 
@@ -13,7 +14,7 @@ const DELIMITER: comptime_int = if (builtin.target.os.tag == .windows) '\r' else
 fn run(
     allocator: std.mem.Allocator,
     stdin: std.fs.File,
-    lines: *ConcurrentArrayList(String),
+    input: *InputData,
     should_terminate: *volatile bool,
 ) anyerror!void {
     var reader = stdin.reader();
@@ -33,7 +34,7 @@ fn run(
                 @panic("Unknown error");
             },
         };
-        // I forgot about this originall, this gist saved the pain and jogged my
+        // I forgot about this originally, this gist saved me some pain and jogged my
         // memory: https://gist.github.com/doccaico/4e15cacaf06279ab29c8aacb3f2c9478
         const trimmed_line = if (builtin.target.os.tag == .windows)
             // Nuke prefixing newlines, since we match a EOL
@@ -48,8 +49,19 @@ fn run(
             )
         else
             line;
-        try lines.append(trimmed_line);
+        try input.lines.append(trimmed_line);
     }
+}
+
+fn writeBufferToStdout(input: *const InputData) anyerror!void {
+    if (input.buffer.items.len == 0) {
+        // Nothing was selected, nothing to write out
+        return;
+    }
+    var stdout: std.fs.File = std.io.getStdOut();
+    const buffer: [:0]const u8 = raylib.loadUTF8(input.buffer.items);
+    try stdout.writeAll(buffer);
+    stdout.close();
 }
 
 pub fn main() anyerror!void {
@@ -61,28 +73,25 @@ pub fn main() anyerror!void {
             std.log.err("memory leak", .{});
         }
     }
-    const allocator = gpa.allocator();
+    const allocator: std.mem.Allocator = gpa.allocator();
     var args: Args = try Args.fromStdinAllocated(allocator);
-    var lines = ConcurrentArrayList(String).init(allocator);
+    var input: InputData = InputData.new(allocator);
     var should_terminate: bool = false;
-    var run_thread = try std.Thread.spawn(
-        .{ .allocator = allocator },
-        run,
-        .{ allocator, std.io.getStdIn(), &lines, &should_terminate },
-    );
+    var run_thread: std.Thread = undefined;
     defer {
         should_terminate = true;
         run_thread.join();
         // Must happen after join to avoid usage
         // of deinitialised ConcurrentArrayList
         // during thread termination
+        input.deinit();
         args.deinit();
-        lines.rwlock.lock();
-        for (lines.array_list.items) |*line| {
-            line.*.deinit();
-        }
-        lines.rwlock.unlock();
-        lines.deinit();
     }
-    try render(allocator, &lines, args);
+    run_thread = try std.Thread.spawn(
+        .{ .allocator = allocator },
+        run,
+        .{ allocator, std.io.getStdIn(), &input, &should_terminate },
+    );
+    try render(allocator, &input, args);
+    try writeBufferToStdout(&input);
 }
