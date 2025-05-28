@@ -9,6 +9,8 @@ const InputData = @import("data.zig").InputData;
 const Filter = @import("data.zig").Filter;
 const Filters = @import("data.zig").Filters;
 
+// TODO: Make all of these constants configurable via CLI
+//       and/or dotfile
 const SCREEN_WIDTH = 800;
 const SCREEN_HEIGHT = 450;
 
