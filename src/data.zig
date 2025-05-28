@@ -7,7 +7,7 @@ const ConcurrentArrayList = @import("containers/concurrent_array_list.zig").Conc
 const String = std.ArrayList(u8);
 const UnicodeString = std.ArrayList(i32);
 
-pub const Filter = fn (buffer: *const UnicodeString, line: *const String) bool;
+pub const Filter: type = fn (buffer: *const UnicodeString, line: *const String) bool;
 
 pub const Filters: type = struct {
     pub fn stringContains(buffer: *const UnicodeString, line: *const String) bool {

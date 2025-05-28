@@ -81,7 +81,7 @@ fn renderVerticalLine(
     y_pos: i32,
     line_height: i32,
 ) anyerror!void {
-    const line_colour = if (input.cursor_line == i)
+    const line_colour: raylib.Color = if (input.cursor_line == i)
         SELECTED_LINE_COLOUR
     else
         BACKGROUND_COLOUR;
@@ -154,13 +154,13 @@ fn renderVertical(
         }
     } else {
         // Filtered
-        for (input.filtered_line_indices.items, 0..) |filter_i, i| {
+        for (0.. @min(args.lines, input.filtered_line_indices.items.len)) |i| {
             try renderVerticalLine(
                 allocator,
                 input,
                 font,
                 i,
-                input.lines.get(filter_i),
+                input.lines.get(input.filtered_line_indices.items[i]),
                 y_pos,
                 line_height,
             );
