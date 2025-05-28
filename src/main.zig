@@ -63,7 +63,7 @@ pub fn main() anyerror!void {
         }
     }
     const allocator = gpa.allocator();
-    var args: Args = try Args.from_stdin_allocated(allocator);
+    var args: Args = try Args.fromStdinAllocated(allocator);
     var lines = ConcurrentArrayList(String).init(allocator);
     var should_terminate: bool = false;
     var run_thread = try std.Thread.spawn(

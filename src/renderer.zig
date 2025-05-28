@@ -5,7 +5,9 @@ const raygui = @import("raygui");
 const Args = @import("args.zig").Args;
 const ConcurrentArrayList = @import("containers/concurrent_array_list.zig").ConcurrentArrayList;
 const String = std.ArrayList(u8);
-const UTF8String = std.ArrayList(i32);
+const InputData = @import("data.zig").InputData;
+const Filter= @import("data.zig").Filter;
+const Filters= @import("data.zig").Filters;
 
 const SCREEN_WIDTH = 800;
 const SCREEN_HEIGHT = 450;
@@ -17,94 +19,101 @@ const FONT_COLOUR = raylib.Color.ray_white;
 
 const LINE_PADDING: comptime_float = 1.0;
 const HALF_LINE_PADDING: comptime_float = LINE_PADDING / 2.0;
+const LINE_FILTER: Filter = Filters.stringContains;
 
 const BACKGROUND_COLOUR = raylib.Color.init(32, 31, 30, 0xFF);
+const SELECTED_LINE_COLOUR = raylib.Color.dark_blue;
 const TRANSPARENT_COLOUR = raylib.Color.init(0, 0, 0, 0);
 
 const KEY_DEBOUNCE_RATE_MS: comptime_float = 0.05;
 
 threadlocal var last_time: f64 = 0;
 
-const InputWrapper: type = struct {
-    allocator: std.mem.Allocator,
-    lines: *ConcurrentArrayList(String),
-    cursor_line: usize,
-    buffer: UTF8String,
-
-    pub fn new(allocator: std.mem.Allocator, lines: *ConcurrentArrayList(String)) @This() {
-        return @This() {
-            .allocator = allocator,
-            .lines = lines,
-            .cursor_line = 0,
-            .buffer = UTF8String.init(allocator),
-        };
-    }
-
-    pub fn deinit(self: *@This()) void {
-        self.buffer.deinit();
-    }
-
-    pub fn select_cursor_line(self: *@This()) anyerror!void {
-        self.buffer.clearAndFree();
-        std.debug.assert(self.cursor_line < self.lines.count());
-        const line: *const String = &self.lines.get(self.cursor_line);
-        const codepoints: []i32 = try raylib.loadCodepoints(line.items);
-        try self.buffer.appendSlice(codepoints);
-        raylib.unloadCodepoints(codepoints);
-    }
-
-    pub fn shift_cursor_line(self: *@This(), shift: isize) void {
-        const next: usize = @intCast(@max(0, @as(isize, @intCast(self.cursor_line)) + shift));
-        self.cursor_line = @min(next, @max(1, self.lines.count()) - 1);
-    }
-};
-
-fn handle_keypress(
+fn handleKeypress(
     _: std.mem.Allocator,
     args: *const Args,
-    input: *InputWrapper,
+    input: *InputData,
 ) anyerror!void {
     var utf8_char: i32 = raylib.getCharPressed();
+    const updated_buffer: bool = utf8_char > 0;
     while (utf8_char > 0) {
         if (utf8_char >= 32 and utf8_char <= 125) {
             try input.buffer.append(utf8_char);
         }
         utf8_char = raylib.getCharPressed();
     }
-    const next_key: raylib.KeyboardKey = if (args.is_vertical()) raylib.KeyboardKey.down else raylib.KeyboardKey.right;
-    const prev_key: raylib.KeyboardKey = if (args.is_vertical()) raylib.KeyboardKey.up else raylib.KeyboardKey.left;
+    if (updated_buffer) {
+        try input.filterLines(LINE_FILTER);
+    }
+    const next_key: raylib.KeyboardKey = if (args.isVertical()) raylib.KeyboardKey.down else raylib.KeyboardKey.right;
+    const prev_key: raylib.KeyboardKey = if (args.isVertical()) raylib.KeyboardKey.up else raylib.KeyboardKey.left;
     if (raylib.isKeyDown(next_key) and raylib.getTime() - last_time >= KEY_DEBOUNCE_RATE_MS) {
         last_time = raylib.getTime();
-        input.shift_cursor_line(1);
+        input.shiftCursorLine(1);
     } else if (raylib.isKeyDown(prev_key) and raylib.getTime() - last_time >= KEY_DEBOUNCE_RATE_MS) {
         last_time = raylib.getTime();
-        input.shift_cursor_line(-1);
+        input.shiftCursorLine(-1);
     } else if (raylib.isKeyPressed(raylib.KeyboardKey.tab)) {
         last_time = raylib.getTime();
-        try input.select_cursor_line();
+        try input.selectCursorLine();
     } else if (raylib.isKeyDown(raylib.KeyboardKey.backspace) and raylib.getTime() - last_time >= KEY_DEBOUNCE_RATE_MS) {
         last_time = raylib.getTime();
         _ = input.buffer.pop();
     }
 }
 
-fn render_horizontal(
+fn renderHorizontal(
     _: std.mem.Allocator,
-    _: *ConcurrentArrayList(String),
     _: *const Args,
     _: *const raylib.Font,
     _: f32,
+    _: *InputData,
 ) anyerror!void {
     // TODO: Implement this
 }
 
-fn render_vertical(
+fn renderVerticalLine(
     allocator: std.mem.Allocator,
-    lines: *ConcurrentArrayList(String),
+    input: *InputData,
+    font: *const raylib.Font,
+    i: usize,
+    line: String,
+    y_pos: i32,
+    line_height: i32,
+) anyerror!void {
+    const line_colour = if (input.cursor_line == i)
+        SELECTED_LINE_COLOUR
+    else
+        BACKGROUND_COLOUR;
+    raylib.drawRectangle(
+        0,
+        y_pos,
+        SCREEN_WIDTH,
+        line_height,
+        line_colour,
+    );
+    const c_line: [:0]const u8 = try std.fmt.allocPrintZ(
+        allocator,
+        "{s}",
+        .{line.items},
+    );
+    defer allocator.free(c_line);
+    raylib.drawTextEx(
+        font.*,
+        c_line,
+        raylib.Vector2.init(10, @as(f32, @floatFromInt(y_pos)) + HALF_LINE_PADDING),
+        FONT_SIZE,
+        FONT_SPACING,
+        FONT_COLOUR,
+    );
+}
+
+fn renderVertical(
+    allocator: std.mem.Allocator,
     args: *const Args,
     font: *const raylib.Font,
     font_height: f32,
-    input: *InputWrapper,
+    input: *InputData,
 ) anyerror!void {
     // TODO: Handle prompt text on left offsetting
     //       lines on X axis by width of prompt text
@@ -129,29 +138,34 @@ fn render_vertical(
 
     // Lines
     var y_pos: i32 = line_height;
-    for (0..@min(args.lines, lines.count())) |i| {
-        raylib.drawRectangle(
-            0,
-            y_pos,
-            SCREEN_WIDTH,
-            line_height,
-            BACKGROUND_COLOUR,
-        );
-        const line: [:0]const u8 = try std.fmt.allocPrintZ(
-            allocator,
-            "{s}",
-            .{lines.array_list.items[i].items},
-        );
-        defer allocator.free(line);
-        raylib.drawTextEx(
-            font.*,
-            line,
-            raylib.Vector2.init(10, @as(f32, @floatFromInt(y_pos)) + HALF_LINE_PADDING),
-            FONT_SIZE,
-            FONT_SPACING,
-            FONT_COLOUR,
-        );
-        y_pos += line_height;
+    if (input.buffer.items.len == 0) {
+        // No filtering
+        for (0..@min(args.lines, input.lines.count())) |i| {
+            try renderVerticalLine(
+                allocator,
+                input,
+                font,
+                i,
+                input.lines.get(i),
+                y_pos,
+                line_height,
+            );
+            y_pos += line_height;
+        }
+    } else {
+        // Filtered
+        for (input.filtered_line_indices.items, 0..) |filter_i, i| {
+            try renderVerticalLine(
+                allocator,
+                input,
+                font,
+                i,
+                input.lines.get(filter_i),
+                y_pos,
+                line_height,
+            );
+            y_pos += line_height;
+        }
     }
 }
 
@@ -174,7 +188,7 @@ pub fn render(
     );
     defer raylib.unloadFont(font);
     const line_size: i32 = font.baseSize + @as(i32, @intFromFloat(LINE_PADDING));
-    var input: InputWrapper = InputWrapper.new(allocator, lines);
+    var input: InputData = InputData.new(allocator, lines);
     defer input.deinit();
     while (!raylib.windowShouldClose()) {
         const line_count = lines.count();
@@ -188,10 +202,9 @@ pub fn render(
         raylib.beginDrawing();
         defer raylib.endDrawing();
         raylib.clearBackground(TRANSPARENT_COLOUR);
-        try handle_keypress(allocator, &args, &input);
-        try render_vertical(
+        try handleKeypress(allocator, &args, &input);
+        try renderVertical(
             allocator,
-            lines,
             &args,
             &font,
             @floatFromInt(font.baseSize),
