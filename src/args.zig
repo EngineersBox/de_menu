@@ -41,5 +41,9 @@ pub const Args: type = struct {
             self.allocator.free(prompt);
         }
     }
+
+    pub inline fn is_vertical(self: *const @This()) bool {
+        return self.lines > 0;
+    }
 };
 

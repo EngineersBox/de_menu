@@ -21,19 +21,70 @@ const HALF_LINE_PADDING: comptime_float = LINE_PADDING / 2.0;
 const BACKGROUND_COLOUR = raylib.Color.init(32, 31, 30, 0xFF);
 const TRANSPARENT_COLOUR = raylib.Color.init(0, 0, 0, 0);
 
+const KEY_DEBOUNCE_RATE_MS: comptime_float = 0.05;
+
+threadlocal var last_time: f64 = 0;
+
+const InputWrapper: type = struct {
+    allocator: std.mem.Allocator,
+    lines: *ConcurrentArrayList(String),
+    cursor_line: usize,
+    buffer: UTF8String,
+
+    pub fn new(allocator: std.mem.Allocator, lines: *ConcurrentArrayList(String)) @This() {
+        return @This() {
+            .allocator = allocator,
+            .lines = lines,
+            .cursor_line = 0,
+            .buffer = UTF8String.init(allocator),
+        };
+    }
+
+    pub fn deinit(self: *@This()) void {
+        self.buffer.deinit();
+    }
+
+    pub fn select_cursor_line(self: *@This()) anyerror!void {
+        self.buffer.clearAndFree();
+        std.debug.assert(self.cursor_line < self.lines.count());
+        const line: *const String = &self.lines.get(self.cursor_line);
+        const codepoints: []i32 = try raylib.loadCodepoints(line.items);
+        try self.buffer.appendSlice(codepoints);
+        raylib.unloadCodepoints(codepoints);
+    }
+
+    pub fn shift_cursor_line(self: *@This(), shift: isize) void {
+        const next: usize = @intCast(@max(0, @as(isize, @intCast(self.cursor_line)) + shift));
+        self.cursor_line = @min(next, @max(1, self.lines.count()) - 1);
+    }
+};
+
 fn handle_keypress(
     _: std.mem.Allocator,
-    user_input_buffer: *UTF8String,
+    args: *const Args,
+    input: *InputWrapper,
 ) anyerror!void {
     var utf8_char: i32 = raylib.getCharPressed();
     while (utf8_char > 0) {
         if (utf8_char >= 32 and utf8_char <= 125) {
-            try user_input_buffer.append(utf8_char);
-        } else if (utf8_char == @intFromEnum(raylib.KeyboardKey.backspace)) {
-            // FIXME: Figure out UTF-8 encoding of backspace
-            _ = user_input_buffer.pop();
+            try input.buffer.append(utf8_char);
         }
         utf8_char = raylib.getCharPressed();
+    }
+    const next_key: raylib.KeyboardKey = if (args.is_vertical()) raylib.KeyboardKey.down else raylib.KeyboardKey.right;
+    const prev_key: raylib.KeyboardKey = if (args.is_vertical()) raylib.KeyboardKey.up else raylib.KeyboardKey.left;
+    if (raylib.isKeyDown(next_key) and raylib.getTime() - last_time >= KEY_DEBOUNCE_RATE_MS) {
+        last_time = raylib.getTime();
+        input.shift_cursor_line(1);
+    } else if (raylib.isKeyDown(prev_key) and raylib.getTime() - last_time >= KEY_DEBOUNCE_RATE_MS) {
+        last_time = raylib.getTime();
+        input.shift_cursor_line(-1);
+    } else if (raylib.isKeyPressed(raylib.KeyboardKey.tab)) {
+        last_time = raylib.getTime();
+        try input.select_cursor_line();
+    } else if (raylib.isKeyDown(raylib.KeyboardKey.backspace) and raylib.getTime() - last_time >= KEY_DEBOUNCE_RATE_MS) {
+        last_time = raylib.getTime();
+        _ = input.buffer.pop();
     }
 }
 
@@ -53,7 +104,7 @@ fn render_vertical(
     args: *const Args,
     font: *const raylib.Font,
     font_height: f32,
-    user_input_buffer: *UTF8String,
+    input: *InputWrapper,
 ) anyerror!void {
     // TODO: Handle prompt text on left offsetting
     //       lines on X axis by width of prompt text
@@ -68,15 +119,13 @@ fn render_vertical(
     );
     raylib.drawTextCodepoints(
         font.*,
-        user_input_buffer.items,
+        input.buffer.items,
         raylib.Vector2.init(10, HALF_LINE_PADDING),
         FONT_SIZE,
         FONT_SPACING,
         FONT_COLOUR,
     );
-    // TODO:
-    // 1. Draw flashing cursor afterwards
-    // 2. Check if text is longer than input field, show only truncated ending if so
+    // TODO: Check if text is longer than input field, show only truncated ending if so
 
     // Lines
     var y_pos: i32 = line_height;
@@ -125,8 +174,8 @@ pub fn render(
     );
     defer raylib.unloadFont(font);
     const line_size: i32 = font.baseSize + @as(i32, @intFromFloat(LINE_PADDING));
-    var user_input_buffer = UTF8String.init(allocator);
-    defer user_input_buffer.deinit();
+    var input: InputWrapper = InputWrapper.new(allocator, lines);
+    defer input.deinit();
     while (!raylib.windowShouldClose()) {
         const line_count = lines.count();
         raylib.setWindowSize(
@@ -139,14 +188,14 @@ pub fn render(
         raylib.beginDrawing();
         defer raylib.endDrawing();
         raylib.clearBackground(TRANSPARENT_COLOUR);
-        try handle_keypress(allocator, &user_input_buffer);
+        try handle_keypress(allocator, &args, &input);
         try render_vertical(
             allocator,
             lines,
             &args,
             &font,
             @floatFromInt(font.baseSize),
-            &user_input_buffer,
+            &input,
         );
     }
 }
