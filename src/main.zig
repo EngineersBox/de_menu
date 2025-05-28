@@ -18,6 +18,7 @@ fn run(
     should_terminate: *volatile bool,
 ) anyerror!void {
     var reader = stdin.reader();
+    defer stdin.close();
     while (!should_terminate.*) {
         var line: String = String.init(allocator);
         reader.streamUntilDelimiter(
@@ -80,7 +81,6 @@ pub fn main() anyerror!void {
     var run_thread: std.Thread = undefined;
     defer {
         should_terminate = true;
-        run_thread.join();
         // Must happen after join to avoid usage
         // of deinitialised ConcurrentArrayList
         // during thread termination
@@ -92,6 +92,7 @@ pub fn main() anyerror!void {
         run,
         .{ allocator, std.io.getStdIn(), &input, &should_terminate },
     );
+    run_thread.detach();
     try render(allocator, &input, args);
     try writeBufferToStdout(&input);
 }
