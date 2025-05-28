@@ -201,9 +201,6 @@ pub fn render(
             SCREEN_WIDTH,
             line_size * @as(i32, @intCast(1 + @min(line_count, args.lines))),
         );
-        if (line_count == 0) {
-            continue;
-        }
         raylib.beginDrawing();
         defer raylib.endDrawing();
         raylib.clearBackground(raylib.Color.blank);

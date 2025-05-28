@@ -44,8 +44,12 @@ pub const InputData: type = struct {
     }
 
     pub fn selectCursorLine(self: *@This()) anyerror!void {
+        const filtered = self.buffer.items.len != 0;
         self.buffer.clearAndFree();
-        const cursor_line: usize = if (self.cursor_line) |c| c else return;
+        var cursor_line: usize = if (self.cursor_line) |c| c else return;
+        if (filtered) {
+            cursor_line = self.filtered_line_indices.items[cursor_line];
+        }
         const line: *const String = &self.lines.get(cursor_line);
         self.cursor_line = 0;
         const codepoints: []i32 = try raylib.loadCodepoints(line.items);
@@ -66,12 +70,12 @@ pub const InputData: type = struct {
             return;
         }
         self.cursor_line = @min(line_count -| 1, @as(usize, @intCast(@max(0, cursor_line + shift))));
-        std.debug.print("Cursor line: {} -> {}\n", .{ cursor_line, self.cursor_line.? });
     }
 
     pub fn filterLines(self: *@This(), filter: Filter) !void {
         // Lines are filtered only when there is text in the buffer
         if (self.buffer.items.len == 0) {
+            self.shiftCursorLine(0);
             return;
         }
         self.cursor_line = 0;
@@ -83,10 +87,6 @@ pub const InputData: type = struct {
                 try self.filtered_line_indices.append(i);
             }
         }
-        // self.shiftCursorLine(0);
-        self.cursor_line = if (self.filtered_line_indices.items.len == 0)
-            null
-        else
-            self.filtered_line_indices.items[0];
+        self.shiftCursorLine(0);
     }
 };
