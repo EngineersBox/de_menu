@@ -24,14 +24,27 @@ const LINE_FILTER: Filter = Filters.stringContains;
 const BACKGROUND_COLOUR = raylib.Color.init(32, 31, 30, 0xFF);
 const SELECTED_LINE_COLOUR = raylib.Color.dark_blue;
 
-const KEY_DEBOUNCE_RATE_MS: comptime_float = 0.05;
+const INITIAL_DEBOUNCE_RATE_MS: comptime_float = 1.0;
+const KEY_DEBOUNCE_RATE_MS: comptime_float = 0.07;
 const MOVE_DEBOUNCE_RATE_MS: comptime_float = 0.1;
 
 threadlocal var last_time: f64 = 0;
+threadlocal var last_initial: f64 = 0;
 
 fn debounce(rate: f64) bool {
-    if (raylib.getTime() - last_time >= rate) {
-        last_time = raylib.getTime();
+    const time: f64 = raylib.getTime();
+    if (time - last_time >= rate) {
+        last_time = time;
+        return true;
+    }
+    return false;
+}
+
+fn debounceInitial(rate: f64) bool {
+    const time: f64 = raylib.getTime();
+    if (last_time - time >= rate) {
+        last_time = time;
+        last_initial = time;
         return true;
     }
     return false;
@@ -39,30 +52,44 @@ fn debounce(rate: f64) bool {
 
 fn handleKeypress(
     _: std.mem.Allocator,
-    args: *const Args,
     input: *InputData,
 ) anyerror!void {
-    var utf8_char: i32 = raylib.getCharPressed();
-    var updated_buffer: bool = utf8_char > 0;
-    while (utf8_char > 0) {
-        if (utf8_char >= 32 and utf8_char <= 125) {
-            try input.buffer.append(utf8_char);
+    var unicode_char: i32 = raylib.getCharPressed();
+    var updated_buffer: bool = unicode_char > 0;
+    while (unicode_char > 0) {
+        if (unicode_char >= 32 and unicode_char <= 125) {
+            try input.buffer.insert(input.buffer_col, unicode_char);
+            input.shiftBufferCol(1);
         }
-        utf8_char = raylib.getCharPressed();
+        unicode_char = raylib.getCharPressed();
     }
-    const next_key: raylib.KeyboardKey = if (args.isVertical()) raylib.KeyboardKey.down else raylib.KeyboardKey.right;
-    const prev_key: raylib.KeyboardKey = if (args.isVertical()) raylib.KeyboardKey.up else raylib.KeyboardKey.left;
-    if (raylib.isKeyDown(next_key) and debounce(MOVE_DEBOUNCE_RATE_MS)) {
+    if (raylib.isKeyDown(raylib.KeyboardKey.down) and debounce(MOVE_DEBOUNCE_RATE_MS)) {
         input.shiftCursorLine(1);
-    } else if (raylib.isKeyDown(prev_key) and debounce(MOVE_DEBOUNCE_RATE_MS)) {
+    } else if (raylib.isKeyDown(raylib.KeyboardKey.up) and debounce(MOVE_DEBOUNCE_RATE_MS)) {
         input.shiftCursorLine(-1);
+    } else if (raylib.isKeyDown(raylib.KeyboardKey.left) and debounce(MOVE_DEBOUNCE_RATE_MS)) {
+        input.shiftBufferCol(-1);
+    } else if (raylib.isKeyDown(raylib.KeyboardKey.right) and debounce(MOVE_DEBOUNCE_RATE_MS)) {
+        input.shiftBufferCol(1);
     } else if (raylib.isKeyPressed(raylib.KeyboardKey.tab) and debounce(KEY_DEBOUNCE_RATE_MS)) {
         try input.selectCursorLine();
         updated_buffer = true;
-    } else if (raylib.isKeyDown(raylib.KeyboardKey.backspace) and debounce(KEY_DEBOUNCE_RATE_MS)) {
-        _ = input.buffer.pop();
-        updated_buffer = true;
     }
+    if (input.buffer_col > 0) {
+        if (raylib.isKeyPressed(raylib.KeyboardKey.backspace) and debounceInitial(KEY_DEBOUNCE_RATE_MS)) {
+            _ = input.buffer.orderedRemove(input.buffer_col -| 1);
+            input.shiftBufferCol(-1);
+            updated_buffer = true;
+        } else if (raylib.isKeyDown(raylib.KeyboardKey.backspace) and raylib.getTime() - last_initial >= INITIAL_DEBOUNCE_RATE_MS and debounce(KEY_DEBOUNCE_RATE_MS)) {
+            _ = input.buffer.orderedRemove(input.buffer_col -| 1);
+            input.shiftBufferCol(-1);
+            updated_buffer = true;
+        }
+    }
+    if (raylib.isKeyReleased(raylib.KeyboardKey.backspace)) {
+        last_time = raylib.getTime();
+    }
+
     if (updated_buffer) {
         try input.filterLines(LINE_FILTER);
     }
@@ -140,6 +167,36 @@ fn renderVertical(
         FONT_SPACING,
         FONT_COLOUR,
     );
+    var buffer_col_offset: raylib.Vector2 = raylib.Vector2.init(0, FONT_SIZE);
+    if (input.buffer.items.len != 0) {
+        const buffer: []const c_int = if (input.buffer_col == 0)
+            &[_]c_int{0x34}
+        else
+            input.buffer.items[0..input.buffer_col];
+        const c_buffer: [:0]u8 = raylib.loadUTF8(buffer);
+        defer raylib.unloadUTF8(c_buffer);
+        buffer_col_offset = raylib.measureTextEx(
+            font.*,
+            c_buffer,
+            FONT_SIZE,
+            FONT_SPACING,
+        );
+        if (input.buffer_col == 0) {
+            buffer_col_offset.x = 0;
+        }
+    }
+    raylib.drawLineEx(
+        raylib.Vector2.init(
+            10 + buffer_col_offset.x,
+            HALF_LINE_PADDING,
+        ),
+        raylib.Vector2.init(
+            10 + buffer_col_offset.x,
+            HALF_LINE_PADDING + buffer_col_offset.y,
+        ),
+        1.0,
+        FONT_COLOUR,
+    );
     // TODO: Check if text is longer than input field, show only truncated ending if so
 
     // Lines
@@ -209,7 +266,7 @@ pub fn render(
         raylib.beginDrawing();
         defer raylib.endDrawing();
         raylib.clearBackground(raylib.Color.blank);
-        try handleKeypress(allocator, &args, &input);
+        try handleKeypress(allocator, &input);
         try renderVertical(
             allocator,
             &args,
