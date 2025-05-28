@@ -46,7 +46,10 @@ You can move the binary to wherever you want and it'll work fine.
 * Scrolling via list traversal is not implemented yet.
 * Exceeding render boundary on text doesn't shift the visible text window yet.
 * 1:1 compatibility with dmenu hasn't been achieved yet.
+* Using a local fixed-path font for now, replace it with your own in `src/renderer.zig` if you want.
 
 ## Notes
 
 I might port the manual rendering to use raygui instead to support stylesheets and all that good stuff. For now, features are more important, the current UI is good enough.
+
+All the configuration for styling is emedded in the renderer at the moment, at some stage it'll be configurable via CLI options and/or dotfiles.
