@@ -56,8 +56,9 @@ fn handleKeypress(
         input.shiftCursorLine(1);
     } else if (raylib.isKeyDown(prev_key) and debounce(MOVE_DEBOUNCE_RATE_MS)) {
         input.shiftCursorLine(-1);
-    } else if (raylib.isKeyPressed(raylib.KeyboardKey.tab)) {
+    } else if (raylib.isKeyPressed(raylib.KeyboardKey.tab) and debounce(KEY_DEBOUNCE_RATE_MS)) {
         try input.selectCursorLine();
+        updated_buffer = true;
     } else if (raylib.isKeyDown(raylib.KeyboardKey.backspace) and debounce(KEY_DEBOUNCE_RATE_MS)) {
         _ = input.buffer.pop();
         updated_buffer = true;
