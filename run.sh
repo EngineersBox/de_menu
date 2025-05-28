@@ -16,4 +16,4 @@ case "$(basename "$PWD")" in
 esac
 
 zig build
-ls -t1 | zig-out/bin/de_menu
+ls -t1 | zig-out/bin/de_menu -p Test
