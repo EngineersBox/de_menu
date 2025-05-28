@@ -75,7 +75,7 @@ pub fn main() anyerror!void {
         }
     }
     const allocator: std.mem.Allocator = gpa.allocator();
-    var args: Args = try Args.fromStdinAllocated(allocator);
+    var args: Args = if (try Args.fromStdinAllocated(allocator)) |args| args else return;
     var input: InputData = InputData.new(allocator);
     var should_terminate: bool = false;
     var run_thread: std.Thread = undefined;

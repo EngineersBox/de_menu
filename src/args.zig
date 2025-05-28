@@ -7,8 +7,9 @@ pub const Args: type = struct {
     lines: usize,
     prompt: ?[]const u8,
 
-    pub fn fromStdinAllocated(allocator: std.mem.Allocator) anyerror!@This() {
+    pub fn fromStdinAllocated(allocator: std.mem.Allocator) anyerror!?@This() {
         const params = comptime clap.parseParamsComptime(
+            \\ -h, --help
             \\ -l, --lines <usize>        lists items vertically, with the given number of lines
             \\ -p, --prompt <str>         defines the prompt to be displayed to the left of the input field
         );
@@ -32,6 +33,17 @@ pub const Args: type = struct {
             .lines = 20,
             .prompt = null,
         };
+        if (res.args.help != 0) {
+            var writer = std.io.getStdErr().writer();
+            try writer.writeAll("Usage: de_menu [options...]\nOptions:\n");
+            try clap.help(
+                writer,
+                clap.Help,
+                &params,
+                .{},
+            );
+            return null;
+        }
         if (res.args.lines) |lines| {
             args.lines = lines;
         }
