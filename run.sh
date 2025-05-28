@@ -5,8 +5,6 @@ set -o errexit -o pipefail -o noclobber -o nounset
 PWD="$(pwd)"
 PROJECT_DIR_NAME="de_menu"
 
-# Ensure we work from the project base dir to avoid
-# weird mounting behaviour when running container
 case "$(basename "$PWD")" in
   "$PROJECT_DIR_NAME") ;;
   *)

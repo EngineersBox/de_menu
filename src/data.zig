@@ -10,12 +10,22 @@ const UnicodeString = std.ArrayList(i32);
 pub const Filter: type = fn (buffer: *const UnicodeString, line: *const String) bool;
 
 pub const Filters: type = struct {
-    pub fn stringContains(buffer: *const UnicodeString, line: *const String) bool {
+    pub fn contains(buffer: *const UnicodeString, line: *const String) bool {
         const line_unicode: []i32 = raylib.loadCodepoints(line.items) catch return false;
+        defer raylib.unloadCodepoints(line_unicode);
         return std.mem.containsAtLeast(
             i32,
             line_unicode,
             1,
+            buffer.items,
+        );
+    }
+    pub fn startsWith(buffer: *const UnicodeString, line: *const String) bool {
+        const line_unicode: []i32 = raylib.loadCodepoints(line.items) catch return false;
+        defer raylib.unloadCodepoints(line_unicode);
+        return std.mem.startsWith(
+            i32,
+            line_unicode,
             buffer.items,
         );
     }
@@ -63,8 +73,8 @@ pub const InputData: type = struct {
         self.cursor_line = 0;
         // Convert to unicode
         const codepoints: []i32 = try raylib.loadCodepoints(line.items);
+        defer raylib.unloadCodepoints(codepoints);
         try self.buffer.appendSlice(codepoints[0..line.items.len]);
-        raylib.unloadCodepoints(codepoints);
         // Put blinking cursor at the end of the buffer
         self.buffer_col = line.items.len;
     }

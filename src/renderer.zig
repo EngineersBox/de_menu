@@ -21,16 +21,19 @@ const FONT_COLOUR = raylib.Color.ray_white;
 
 const LINE_PADDING: comptime_float = 1.0;
 const HALF_LINE_PADDING: comptime_float = LINE_PADDING / 2.0;
-const LINE_FILTER: Filter = Filters.stringContains;
+// TODO: Fix the contains filtering, it leaves elements
+//       visible that dont match.
+const LINE_FILTER: Filter = Filters.contains;
 const LINE_TEXT_OFFSET: comptime_float = 10.0;
 
+const PROMPT_TEXT_OFFSET: comptime_float = 10.0;
 const PROMPT_COLOUR = raylib.Color.dark_blue;
 
 const BACKGROUND_COLOUR = raylib.Color.init(32, 31, 30, 0xFF);
 const SELECTED_LINE_COLOUR = raylib.Color.dark_blue;
 
 const INITIAL_DEBOUNCE_RATE_MS: comptime_float = 1.0;
-const KEY_DEBOUNCE_RATE_MS: comptime_float = 0.07;
+const KEY_DEBOUNCE_RATE_MS: comptime_float = 0.1;
 const MOVE_DEBOUNCE_RATE_MS: comptime_float = 0.1;
 
 threadlocal var last_time: f64 = 0;
@@ -165,6 +168,11 @@ fn renderPrompt(
     font: *const raylib.Font,
     font_height: f32,
 ) anyerror!f32 {
+    // TODO: Should this support multiple lines? If so
+    //       we should return raylib.Vector2 prompt
+    //       dimensions instead of just the x value.
+    //       Also need to consider how user input would work
+    //       and look.
     if (args.prompt == null or args.prompt.?.len == 0) {
         return 0;
     }
@@ -174,12 +182,13 @@ fn renderPrompt(
         .{args.prompt.?},
     );
     defer allocator.free(c_prompt);
-    const prompt_dims = raylib.measureTextEx(
+    var prompt_dims = raylib.measureTextEx(
         font.*,
         c_prompt,
         FONT_SIZE,
         FONT_SPACING,
     );
+    prompt_dims.x += PROMPT_TEXT_OFFSET * 2;
     const line_height: i32 = @intFromFloat(font_height + LINE_PADDING);
     raylib.drawRectangle(
         0,
@@ -191,7 +200,10 @@ fn renderPrompt(
     raylib.drawTextEx(
         font.*,
         c_prompt,
-        raylib.Vector2.zero(),
+        raylib.Vector2.init(
+            PROMPT_TEXT_OFFSET,
+            HALF_LINE_PADDING,
+        ),
         FONT_SIZE,
         FONT_SPACING,
         FONT_COLOUR,
@@ -312,7 +324,7 @@ pub fn render(
         .window_transparent = true,
         .window_undecorated = true,
     });
-    raylib.setTraceLogLevel(raylib.TraceLogLevel.err);
+    raylib.setTraceLogLevel(raylib.TraceLogLevel.warning);
     raylib.initWindow(
         SCREEN_WIDTH,
         SCREEN_HEIGHT,
