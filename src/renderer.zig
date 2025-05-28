@@ -226,7 +226,6 @@ fn renderVertical(
     );
     const int_prompt_offset: i32 = @intFromFloat(prompt_offset);
     const line_height: i32 = @intFromFloat(font_height + LINE_PADDING);
-    // Fuzzy finding
     raylib.drawRectangle(
         int_prompt_offset,
         0,
