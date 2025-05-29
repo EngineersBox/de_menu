@@ -42,7 +42,6 @@ You can move the binary to wherever you want and it'll work fine.
 
 ## Known Issues
 
-* The filtering is a bit busted since its over Unicode codepoints and zig's `std.mem.contains` doesn't seem to work correctly.
 * Scrolling via list traversal is not implemented yet.
 * Exceeding render boundary on text doesn't shift the visible text window yet.
 * 1:1 compatibility with dmenu hasn't been achieved yet.
