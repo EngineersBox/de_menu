@@ -2,6 +2,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 const raylib = @import("raylib");
 const raygui = @import("raygui");
+const KnownFolders = @import("known-folders");
 
 const render = @import("renderer.zig").render;
 const Args = @import("args.zig").Args;
@@ -10,6 +11,10 @@ const ConcurrentArrayList = @import("containers/concurrent_array_list.zig").Conc
 const String = std.ArrayList(u8);
 
 const DELIMITER: comptime_int = if (builtin.target.os.tag == .windows) '\r' else '\n';
+
+pub const known_folders_config: KnownFolders.KnownFolderConfig = .{
+    .xdg_force_default = false,
+};
 
 fn run(
     allocator: std.mem.Allocator,

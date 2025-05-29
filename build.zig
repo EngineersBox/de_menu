@@ -4,15 +4,18 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const raylib_dep = b.dependency("raylib_zig", .{
+    const raylib= b.dependency("raylib_zig", .{
         .target = target,
         .optimize = optimize,
     });
-    const raylib = raylib_dep.module("raylib");
-    const raygui = raylib_dep.module("raygui");
-    const raylib_artefact = raylib_dep.artifact("raylib");
-
-    const clap = b.dependency("clap", .{});
+    const clap = b.dependency("clap", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    const known_folders = b.dependency("known_folders", .{
+        .target = target,
+        .optimize = optimize,
+    });
 
     const exe_mod = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
@@ -25,10 +28,11 @@ pub fn build(b: *std.Build) void {
         .root_module = exe_mod,
     });
 
-    exe.linkLibrary(raylib_artefact);
-    exe.root_module.addImport("raylib", raylib);
-    exe.root_module.addImport("raygui", raygui);
+    exe.linkLibrary(raylib.artifact("raylib"));
+    exe.root_module.addImport("raylib", raylib.module("raylib"));
+    exe.root_module.addImport("raygui", raylib.module("raygui"));
     exe.root_module.addImport("clap", clap.module("clap"));
+    exe.root_module.addImport("known-folders", known_folders.module("known-folders"));
     b.installArtifact(exe);
 
     const run_cmd = b.addRunArtifact(exe);

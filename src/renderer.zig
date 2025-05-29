@@ -1,6 +1,7 @@
 const std = @import("std");
 const raylib = @import("raylib");
 const raygui = @import("raygui");
+const known_folders = @import("known-folders");
 
 const Args = @import("args.zig").Args;
 const ConcurrentArrayList = @import("containers/concurrent_array_list.zig").ConcurrentArrayList;
@@ -9,6 +10,8 @@ const InputData = @import("data.zig").InputData;
 const Filter = @import("data.zig").Filter;
 const Filters = @import("data.zig").Filters;
 
+// === START CONFIGS ===
+
 // TODO: Make all of these constants configurable via CLI
 //       and/or dotfile
 const SCREEN_WIDTH = 800;
@@ -16,7 +19,7 @@ const SCREEN_HEIGHT = 450;
 
 const FONT_SIZE: comptime_float = 20.0;
 const FONT_SPACING: comptime_float = 1.0;
-const FONT_FILE_PATH = "/Users/jackkilrain/projects/assets/monocraft/Monocraft.otf";
+const FONT_NAME = "Monocraft";
 const FONT_COLOUR = raylib.Color.ray_white;
 
 const LINE_PADDING: comptime_float = 1.0;
@@ -33,6 +36,33 @@ const SELECTED_LINE_COLOUR = raylib.Color.dark_blue;
 const KEY_PRESS_DEBOUNCE_RATE_MS: comptime_float = 0.1;
 const KEY_INITIAL_HELD_DEBOUNCE_RATE_MS: comptime_float = 0.3;
 const KEY_HELD_DEBOUNCE_RATE_MS: comptime_float = 0.1;
+
+// === END CONFIGS ===
+
+const FontExtensions: type = enum {
+    // NOTE: Don't capitalise these, they get converted to a string
+    ttf,
+    otf,
+
+    pub fn matchName(
+        allocator: std.mem.Allocator,
+        name: []const u8,
+        file: []const u8,
+    ) !bool {
+        inline for (std.meta.fields(@This())) |ext| {
+            const file_name = try std.fmt.allocPrint(
+                allocator,
+                "{s}.{s}",
+                .{ name, ext.name },
+            );
+            defer allocator.free(file_name);
+            if (!std.mem.eql(u8, file_name, file)) {
+                return true;
+            }
+        }
+        return false;
+    }
+};
 
 threadlocal var last_time: f64 = 0;
 threadlocal var last_repeat: f64 = 0;
@@ -172,7 +202,7 @@ fn renderPrompt(
     font: *const raylib.Font,
     font_height: f32,
 ) anyerror!f32 {
-    // TODO: Should this support multiple lines? If so
+    // NOTE: Should this support multiple lines? If so
     //       we should return raylib.Vector2 prompt
     //       dimensions instead of just the x value.
     //       Also need to consider how user input would work
@@ -292,7 +322,7 @@ fn renderVertical(
             input.lines.count(),
         );
         for (input.rendered_lines_start..end) |i| {
-        // for (0..@min(args.lines, input.lines.count())) |i| {
+            // for (0..@min(args.lines, input.lines.count())) |i| {
             try renderVerticalLine(
                 allocator,
                 input,
@@ -312,7 +342,7 @@ fn renderVertical(
             input.filtered_line_indices.items.len,
         );
         for (input.rendered_lines_start..end) |i| {
-        // for (0..@min(args.lines, input.filtered_line_indices.items.len)) |i| {
+            // for (0..@min(args.lines, input.filtered_line_indices.items.len)) |i| {
             try renderVerticalLine(
                 allocator,
                 input,
@@ -326,6 +356,44 @@ fn renderVertical(
             y_pos += line_height;
         }
     }
+}
+
+fn findFont(
+    allocator: std.mem.Allocator,
+    font_name: ?[]const u8,
+    font_size: i32,
+) anyerror!raylib.Font {
+    const name = font_name orelse return try raylib.getFontDefault();
+    const maybe_fonts_dir: ?std.fs.Dir = known_folders.open(
+        allocator,
+        known_folders.KnownFolder.fonts,
+        .{},
+    ) catch return try raylib.getFontDefault();
+    const fonts_dir: std.fs.Dir = maybe_fonts_dir orelse return error.NoFontsDir;
+    var iter: std.fs.Dir.Iterator = fonts_dir.iterate();
+    while (try iter.next()) |file| {
+        switch (file.kind) {
+            .file, .sym_link => {},
+            else => continue,
+        }
+        if (!try FontExtensions.matchName(allocator, name, file.name)) {
+            continue;
+        }
+        const font_path = try fonts_dir.realpathAlloc(allocator, file.name);
+        defer allocator.free(font_path);
+        const c_font_path = try std.fmt.allocPrintZ(
+            allocator,
+            "{s}",
+            .{font_path},
+        );
+        defer allocator.free(c_font_path);
+        return try raylib.loadFontEx(
+            c_font_path,
+            font_size,
+            null,
+        );
+    }
+    return try raylib.getFontDefault();
 }
 
 pub fn render(
@@ -344,10 +412,10 @@ pub fn render(
         "de_menu",
     );
     defer raylib.closeWindow();
-    const font = try raylib.loadFontEx(
-        FONT_FILE_PATH,
+    const font = try findFont(
+        allocator,
+        FONT_NAME,
         @intFromFloat(FONT_SIZE),
-        null,
     );
     defer raylib.unloadFont(font);
     const line_size: i32 = font.baseSize + @as(i32, @intFromFloat(LINE_PADDING));
