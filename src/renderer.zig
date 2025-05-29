@@ -50,7 +50,7 @@ const FontExtensions: type = enum {
         file: []const u8,
     ) !bool {
         inline for (std.meta.fields(@This())) |ext| {
-            const file_name = try std.fmt.allocPrint(
+            const file_name: []const u8 = try std.fmt.allocPrint(
                 allocator,
                 "{s}.{s}",
                 .{ name, ext.name },
@@ -286,6 +286,11 @@ fn renderVertical(
     );
     if (input.buffer.items.len != 0) {
         const buffer: []const c_int = if (input.buffer_col == 0)
+            // FIXME: Random value, just to get height of text,
+            //        but in reality we want it to be at least
+            //        as large as the tallest character.
+            //        Alternatively, we could just only support
+            //        monospaced fonts and be done with it.
             &[_]c_int{0x34}
         else
             input.buffer.items[0..input.buffer_col];
@@ -414,7 +419,7 @@ pub fn render(
         "de_menu",
     );
     defer raylib.closeWindow();
-    const font = try findFont(
+    const font: raylib.Font = try findFont(
         allocator,
         FONT_NAME,
         @intFromFloat(FONT_SIZE),
@@ -422,7 +427,7 @@ pub fn render(
     defer raylib.unloadFont(font);
     const line_size: i32 = font.baseSize + @as(i32, @intFromFloat(LINE_PADDING));
     while (true) {
-        const line_count = if (input.buffer.items.len == 0)
+        const line_count: usize = if (input.buffer.items.len == 0)
             input.lines.count()
         else
             input.filtered_line_indices.items.len;
