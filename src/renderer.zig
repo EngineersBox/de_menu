@@ -58,6 +58,10 @@ fn debounceRepeat(initial_rate: f64, repeat_rate: f64) bool {
     return false;
 }
 
+/// Allows initial keypress assuming `KEY_PRESS_DEBOUNCE_RATE_MS` since
+/// last key press, then waits `KEY_INITIAL_HELD_DEBOUNCE_RATE_MS` if
+/// key is continually held, after which subsequent triggers are
+/// `KEY_HELD_DEBOUNCE_RATE_MS` apart.
 fn heldDebounce(key: raylib.KeyboardKey) bool {
     if (raylib.isKeyPressed(key)) {
         return debounce(KEY_PRESS_DEBOUNCE_RATE_MS);
@@ -72,6 +76,7 @@ fn heldDebounce(key: raylib.KeyboardKey) bool {
 
 fn handleKeypress(
     _: std.mem.Allocator,
+    args: *const Args,
     input: *InputData,
 ) anyerror!bool {
     var unicode_char: i32 = raylib.getCharPressed();
@@ -85,9 +90,9 @@ fn handleKeypress(
     }
     var enter_pressed: bool = false;
     if (heldDebounce(raylib.KeyboardKey.down)) {
-        input.shiftCursorLine(1);
+        input.shiftCursorLine(1, args.lines);
     } else if (heldDebounce(raylib.KeyboardKey.up)) {
-        input.shiftCursorLine(-1);
+        input.shiftCursorLine(-1, args.lines);
     } else if (heldDebounce(raylib.KeyboardKey.left)) {
         input.shiftBufferCol(-1);
     } else if (heldDebounce(raylib.KeyboardKey.right)) {
@@ -284,7 +289,12 @@ fn renderVertical(
     var y_pos: i32 = line_height;
     if (input.buffer.items.len == 0) {
         // No filtering
-        for (0..@min(args.lines, input.lines.count())) |i| {
+        const end = @min(
+            input.rendered_lines_start + args.lines,
+            input.lines.count(),
+        );
+        for (input.rendered_lines_start..end) |i| {
+        // for (0..@min(args.lines, input.lines.count())) |i| {
             try renderVerticalLine(
                 allocator,
                 input,
@@ -299,7 +309,12 @@ fn renderVertical(
         }
     } else {
         // Filtered
-        for (0..@min(args.lines, input.filtered_line_indices.items.len)) |i| {
+        const end = @min(
+            input.rendered_lines_start + args.lines,
+            input.filtered_line_indices.items.len,
+        );
+        for (input.rendered_lines_start..end) |i| {
+        // for (0..@min(args.lines, input.filtered_line_indices.items.len)) |i| {
             try renderVerticalLine(
                 allocator,
                 input,
@@ -350,7 +365,7 @@ pub fn render(
         raylib.beginDrawing();
         defer raylib.endDrawing();
         raylib.clearBackground(raylib.Color.blank);
-        if (try handleKeypress(allocator, input)) {
+        if (try handleKeypress(allocator, &args, input)) {
             break;
         }
         try renderVertical(

@@ -41,6 +41,7 @@ pub const Filters: type = struct {
 pub const InputData: type = struct {
     allocator: std.mem.Allocator,
     lines: ConcurrentArrayList(String),
+    rendered_lines_start: usize,
     filtered_line_indices: std.ArrayList(usize),
     cursor_line: ?usize,
     buffer_col: usize,
@@ -50,6 +51,7 @@ pub const InputData: type = struct {
         return @This(){
             .allocator = allocator,
             .lines = ConcurrentArrayList(String).init(allocator),
+            .rendered_lines_start = 0,
             .filtered_line_indices = std.ArrayList(usize).init(allocator),
             .cursor_line = 0,
             .buffer_col = 0,
@@ -86,7 +88,7 @@ pub const InputData: type = struct {
         self.buffer_col = line.items.len;
     }
 
-    pub fn shiftCursorLine(self: *@This(), shift: isize) void {
+    pub fn shiftCursorLine(self: *@This(), shift: isize, lines_window_size: usize) void {
         const cursor_line: isize = if (self.cursor_line) |c| @intCast(c) else 0;
         const line_count: usize = if (self.buffer.items.len == 0)
             // Not filtered
@@ -99,6 +101,14 @@ pub const InputData: type = struct {
             return;
         }
         self.cursor_line = @min(line_count -| 1, @as(usize, @intCast(@max(0, cursor_line + shift))));
+        if (self.cursor_line.? < self.rendered_lines_start) {
+            self.rendered_lines_start -|= 1;
+        } else if (self.cursor_line.? >= self.rendered_lines_start + lines_window_size) {
+            self.rendered_lines_start = @min(
+                self.rendered_lines_start + 1,
+                line_count,
+            );
+        }
     }
 
     pub fn shiftBufferCol(self: *@This(), shift: isize) void {
@@ -109,10 +119,13 @@ pub const InputData: type = struct {
     pub fn filterLines(self: *@This(), filter: Filter) !void {
         // Lines are filtered only when there is text in the buffer
         if (self.buffer.items.len == 0) {
-            self.shiftCursorLine(0);
+            // Using size of 1 here just ensures
+            // we set the default rendered_lines_start
+            self.shiftCursorLine(0, 1);
             return;
         }
         self.cursor_line = 0;
+        self.rendered_lines_start = 0;
         self.filtered_line_indices.clearAndFree();
         self.lines.rwlock.lockShared();
         defer self.lines.rwlock.unlockShared();
@@ -121,6 +134,6 @@ pub const InputData: type = struct {
                 try self.filtered_line_indices.append(i);
             }
         }
-        self.shiftCursorLine(0);
+        self.shiftCursorLine(0, 1);
     }
 };
