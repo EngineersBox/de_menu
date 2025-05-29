@@ -66,8 +66,6 @@ fn heldDebounce(key: raylib.KeyboardKey) bool {
             KEY_INITIAL_HELD_DEBOUNCE_RATE_MS,
             KEY_HELD_DEBOUNCE_RATE_MS,
         );
-    } else if (raylib.isKeyReleased(key)) {
-        // last_time = raylib.getTime();
     }
     return false;
 }
