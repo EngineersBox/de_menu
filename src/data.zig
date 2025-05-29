@@ -9,13 +9,6 @@ const UnicodeString = std.ArrayList(i32);
 
 pub const Filter: type = fn (buffer: *const UnicodeString, line: *const String) bool;
 
-fn printCodepoints(text: []i32) void {
-    for (text) |c| {
-        std.debug.print("{} ", .{c});
-    }
-    std.debug.print("\n", .{});
-}
-
 pub const Filters: type = struct {
     pub fn contains(buffer: *const UnicodeString, line: *const String) bool {
         const line_unicode: []i32 = raylib.loadCodepoints(line.items) catch return false;
@@ -73,7 +66,7 @@ pub const InputData: type = struct {
     pub fn selectCursorLine(self: *@This()) anyerror!void {
         const filtered = self.buffer.items.len != 0;
         self.buffer.clearAndFree();
-        var cursor_line: usize = if (self.cursor_line) |c| c else return;
+        var cursor_line: usize = self.cursor_line orelse return;
         if (filtered) {
             cursor_line = self.filtered_line_indices.items[cursor_line];
         }
@@ -89,7 +82,7 @@ pub const InputData: type = struct {
     }
 
     pub fn shiftCursorLine(self: *@This(), shift: isize, lines_window_size: usize) void {
-        const cursor_line: isize = if (self.cursor_line) |c| @intCast(c) else 0;
+        const cursor_line: isize = @intCast(self.cursor_line orelse 0);
         const line_count: usize = if (self.buffer.items.len == 0)
             // Not filtered
             self.lines.count()
@@ -113,7 +106,13 @@ pub const InputData: type = struct {
 
     pub fn shiftBufferCol(self: *@This(), shift: isize) void {
         const buffer_col: isize = @intCast(self.buffer_col);
-        self.buffer_col = @intCast(@max(0, @min(buffer_col + shift, @as(isize, @intCast(self.buffer.items.len)))));
+        self.buffer_col = @intCast(@max(
+            0,
+            @min(
+                buffer_col + shift,
+                @as(isize, @intCast(self.buffer.items.len)),
+            ),
+        ));
     }
 
     pub fn filterLines(self: *@This(), filter: Filter) !void {
