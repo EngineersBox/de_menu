@@ -55,6 +55,7 @@ pub const Args: type = struct {
 
     pub fn deinit(self: *@This()) void {
         if (self.prompt) |prompt| {
+            // FIXME: Weird Bus error occuring here
             self.allocator.free(prompt);
         }
     }
