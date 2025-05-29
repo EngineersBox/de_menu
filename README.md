@@ -42,7 +42,6 @@ You can move the binary to wherever you want and it'll work fine.
 
 ## Known Issues
 
-* Scrolling via list traversal is not implemented yet.
 * Exceeding render boundary on text doesn't shift the visible text window yet.
 * 1:1 compatibility with dmenu hasn't been achieved yet.
 * Using a local fixed-path font for now, replace it with your own in `src/renderer.zig` if you want.

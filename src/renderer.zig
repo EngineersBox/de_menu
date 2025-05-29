@@ -21,8 +21,6 @@ const FONT_COLOUR = raylib.Color.ray_white;
 
 const LINE_PADDING: comptime_float = 1.0;
 const HALF_LINE_PADDING: comptime_float = LINE_PADDING / 2.0;
-// TODO: Fix the contains filtering, it leaves elements
-//       visible that dont match.
 const LINE_FILTER: Filter = Filters.contains;
 const LINE_TEXT_OFFSET: comptime_float = 10.0;
 
