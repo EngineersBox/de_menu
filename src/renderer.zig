@@ -135,7 +135,9 @@ fn handleKeypress(
         input.buffer_col = 0;
         enter_pressed = true;
     } else if (heldDebounce(raylib.KeyboardKey.backspace)) {
-        _ = input.buffer.orderedRemove(input.buffer_col -| 1);
+        if (input.buffer.items.len > 0) {
+            _ = input.buffer.orderedRemove(input.buffer_col -| 1);
+        }
         input.shiftBufferCol(-1);
         updated_buffer = true;
     }
