@@ -332,7 +332,7 @@ pub fn render(
     defer raylib.closeWindow();
     const font = try raylib.loadFontEx(
         FONT_FILE_PATH,
-        FONT_SIZE,
+        @intFromFloat(FONT_SIZE),
         null,
     );
     defer raylib.unloadFont(font);

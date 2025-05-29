@@ -9,13 +9,20 @@ const UnicodeString = std.ArrayList(i32);
 
 pub const Filter: type = fn (buffer: *const UnicodeString, line: *const String) bool;
 
+fn printCodepoints(text: []i32) void {
+    for (text) |c| {
+        std.debug.print("{} ", .{c});
+    }
+    std.debug.print("\n", .{});
+}
+
 pub const Filters: type = struct {
     pub fn contains(buffer: *const UnicodeString, line: *const String) bool {
         const line_unicode: []i32 = raylib.loadCodepoints(line.items) catch return false;
         defer raylib.unloadCodepoints(line_unicode);
         return std.mem.containsAtLeast(
             i32,
-            line_unicode,
+            line_unicode[0..line.items.len],
             1,
             buffer.items,
         );
@@ -25,7 +32,7 @@ pub const Filters: type = struct {
         defer raylib.unloadCodepoints(line_unicode);
         return std.mem.startsWith(
             i32,
-            line_unicode,
+            line_unicode[0..line.items.len],
             buffer.items,
         );
     }
@@ -96,13 +103,7 @@ pub const InputData: type = struct {
 
     pub fn shiftBufferCol(self: *@This(), shift: isize) void {
         const buffer_col: isize = @intCast(self.buffer_col);
-        self.buffer_col = @intCast(@max(
-            0,
-            @min(
-                buffer_col + shift,
-                @as(isize, @intCast(self.buffer.items.len))
-            )
-        ));
+        self.buffer_col = @intCast(@max(0, @min(buffer_col + shift, @as(isize, @intCast(self.buffer.items.len)))));
     }
 
     pub fn filterLines(self: *@This(), filter: Filter) !void {
