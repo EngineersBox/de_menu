@@ -37,22 +37,34 @@ const KEY_DEBOUNCE_RATE_MS: comptime_float = 0.1;
 const MOVE_DEBOUNCE_RATE_MS: comptime_float = 0.1;
 
 threadlocal var last_time: f64 = 0;
-threadlocal var last_initial: f64 = 0;
+threadlocal var last_repeat: f64 = 0;
 
 fn debounce(rate: f64) bool {
     const time: f64 = raylib.getTime();
     if (time - last_time >= rate) {
         last_time = time;
+        last_repeat = time;
         return true;
     }
     return false;
 }
 
-fn debounceInitial(rate: f64) bool {
+fn debounceRepeat(initial_rate: f64, repeat_rate: f64) bool {
     const time: f64 = raylib.getTime();
-    if (last_time - time >= rate) {
-        last_time = time;
-        last_initial = time;
+    if (last_time - time >= initial_rate and last_repeat - time >= repeat_rate) {
+        last_repeat = time;
+        return true;
+    }
+    return false;
+}
+
+const SINGLE_PRESS_MS: comptime_float = 0.3;
+const HELD_PRESS_MS: comptime_float = 0.1;
+
+fn heldDebounce(key: raylib.KeyboardKey) bool {
+    if (raylib.iskeyPressed(key) and debounce(SINGLE_PRESS_MS)) {
+        return true;
+    } else if (raylib.isKeyDown(key) and debounceRepeat(SINGLE_PRESS_MS, HELD_PRESS_MS)) {
         return true;
     }
     return false;
@@ -72,13 +84,13 @@ fn handleKeypress(
         unicode_char = raylib.getCharPressed();
     }
     var enter_pressed: bool = false;
-    if (raylib.isKeyDown(raylib.KeyboardKey.down) and debounce(MOVE_DEBOUNCE_RATE_MS)) {
+    if (heldDebounce(raylib.KeyboardKey.down)) {
         input.shiftCursorLine(1);
-    } else if (raylib.isKeyDown(raylib.KeyboardKey.up) and debounce(MOVE_DEBOUNCE_RATE_MS)) {
+    } else if (heldDebounce(raylib.KeyboardKey.up)) {
         input.shiftCursorLine(-1);
-    } else if (raylib.isKeyDown(raylib.KeyboardKey.left) and debounce(MOVE_DEBOUNCE_RATE_MS)) {
+    } else if (heldDebounce(raylib.KeyboardKey.left)) {
         input.shiftBufferCol(-1);
-    } else if (raylib.isKeyDown(raylib.KeyboardKey.right) and debounce(MOVE_DEBOUNCE_RATE_MS)) {
+    } else if (heldDebounce(raylib.KeyboardKey.right)) {
         input.shiftBufferCol(1);
     } else if (raylib.isKeyPressed(raylib.KeyboardKey.tab) and debounce(KEY_DEBOUNCE_RATE_MS)) {
         try input.selectCursorLine();
@@ -89,22 +101,11 @@ fn handleKeypress(
         input.buffer.clearAndFree();
         input.buffer_col = 0;
         enter_pressed = true;
+    } else if (heldDebounce(raylib.KeyboardKey.backspace)) {
+        _ = input.buffer.orderedRemove(input.buffer_col -| 1);
+        input.shiftBufferCol(-1);
+        updated_buffer = true;
     }
-    if (input.buffer_col > 0) {
-        if (raylib.isKeyPressed(raylib.KeyboardKey.backspace) and debounceInitial(KEY_DEBOUNCE_RATE_MS)) {
-            _ = input.buffer.orderedRemove(input.buffer_col -| 1);
-            input.shiftBufferCol(-1);
-            updated_buffer = true;
-        } else if (raylib.isKeyDown(raylib.KeyboardKey.backspace) and raylib.getTime() - last_initial >= INITIAL_DEBOUNCE_RATE_MS and debounce(KEY_DEBOUNCE_RATE_MS)) {
-            _ = input.buffer.orderedRemove(input.buffer_col -| 1);
-            input.shiftBufferCol(-1);
-            updated_buffer = true;
-        }
-    }
-    if (raylib.isKeyReleased(raylib.KeyboardKey.backspace)) {
-        last_time = raylib.getTime();
-    }
-
     if (updated_buffer) {
         try input.filterLines(LINE_FILTER);
     }
