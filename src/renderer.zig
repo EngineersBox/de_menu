@@ -2,7 +2,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 const raylib = @import("raylib");
 const raygui = @import("raygui");
-const known_folders = @import("known-folders");
+const fontconfig = @cImport(@cInclude("fontconfig/fontconfig.h"));
 
 const Config = @import("config.zig").Config;
 const ConcurrentArrayList = @import("containers/concurrent_array_list.zig").ConcurrentArrayList;
@@ -365,35 +365,6 @@ fn renderVertical(
         }
     }
 }
-
-// inline fn fontPaths(allocator: std.mem.Allocator) anyerror![][]const u8 {
-//     switch (builtin.os.tag) {
-//         .windows => {
-//              return .{
-//                 try known_folders.getPath(
-//                     allocator,
-//                     known_folders.KnownFolder.fonts,
-//                 ) orelse .{},
-//             };
-//         },
-//         .macos => {
-//             const home = std.process.getEnvVarOwned(allocator, "HOME");
-//             defer allocator.free(home);
-//             return .{
-//                 std.mem.concat(allocator, u8, .{
-//                     home,
-//                     "/Library/Fonts"
-//                 }),
-//                 std.mem.concat(allocator, u8, .{
-//                     home,
-//                     "/Library/Fonts"
-//                 }),
-//             };
-//         },
-//     }
-// }
-
-const fontconfig = @cImport(@cInclude("fontconfig/fontconfig.h"));
 
 fn findFont(
     allocator: std.mem.Allocator,

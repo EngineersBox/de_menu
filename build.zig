@@ -12,10 +12,12 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    // TODO: Remove this?
     const known_folders = b.dependency("known_folders", .{
         .target = target,
         .optimize = optimize,
     });
+    // TODO: Remove this? Or keep it uncommented for the lols?
     // Mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm
     // const microwave = b.dependency("microwave", .{
     //     .target = target,
