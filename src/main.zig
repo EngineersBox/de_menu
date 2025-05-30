@@ -5,15 +5,18 @@ const raygui = @import("raygui");
 const KnownFolders = @import("known-folders");
 
 const render = @import("renderer.zig").render;
-const Args = @import("args.zig").Args;
+const Config = @import("config.zig").Config;
 const InputData = @import("data.zig").InputData;
 const ConcurrentArrayList = @import("containers/concurrent_array_list.zig").ConcurrentArrayList;
 const String = std.ArrayList(u8);
 
 const DELIMITER: comptime_int = if (builtin.target.os.tag == .windows) '\r' else '\n';
 
+// This is dynamically updated from used spots in this repo
+// to set required configurations before using
 pub const known_folders_config: KnownFolders.KnownFolderConfig = .{
     .xdg_force_default = false,
+    .xdg_on_mac = true,
 };
 
 fn run(
@@ -80,24 +83,22 @@ pub fn main() anyerror!void {
         }
     }
     const allocator: std.mem.Allocator = gpa.allocator();
-    var args: Args = try Args.fromStdinAllocated(allocator) orelse return;
-    var input: InputData = InputData.new(allocator);
     var should_terminate: bool = false;
+    // Must happen after run_thread join to avoid
+    // usage of deinitialised ConcurrentArrayList
+    // during thread termination
+    defer should_terminate = true;
+    var input: InputData = InputData.new(allocator);
+    defer input.deinit();
+    var config: Config = try Config.initFromStdin(allocator) orelse return;
+    defer config.deinit();
     var run_thread: std.Thread = undefined;
-    defer {
-        should_terminate = true;
-        // Must happen after join to avoid usage
-        // of deinitialised ConcurrentArrayList
-        // during thread termination
-        input.deinit();
-        args.deinit();
-    }
     run_thread = try std.Thread.spawn(
         .{ .allocator = allocator },
         run,
         .{ allocator, std.io.getStdIn(), &input, &should_terminate },
     );
     run_thread.detach();
-    try render(allocator, &input, args);
+    try render(allocator, &input, config);
     try writeBufferToStdout(&input);
 }

@@ -1,9 +1,10 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const raylib = @import("raylib");
 const raygui = @import("raygui");
 const known_folders = @import("known-folders");
 
-const Args = @import("args.zig").Args;
+const Config = @import("config.zig").Config;
 const ConcurrentArrayList = @import("containers/concurrent_array_list.zig").ConcurrentArrayList;
 const String = std.ArrayList(u8);
 const InputData = @import("data.zig").InputData;
@@ -104,7 +105,7 @@ fn heldDebounce(key: raylib.KeyboardKey) bool {
 
 fn handleKeypress(
     _: std.mem.Allocator,
-    args: *const Args,
+    config: *const Config,
     input: *InputData,
 ) anyerror!bool {
     var unicode_char: i32 = raylib.getCharPressed();
@@ -118,9 +119,9 @@ fn handleKeypress(
     }
     var enter_pressed: bool = false;
     if (heldDebounce(raylib.KeyboardKey.down)) {
-        input.shiftCursorLine(1, args.lines);
+        input.shiftCursorLine(1, config.lines);
     } else if (heldDebounce(raylib.KeyboardKey.up)) {
-        input.shiftCursorLine(-1, args.lines);
+        input.shiftCursorLine(-1, config.lines);
     } else if (heldDebounce(raylib.KeyboardKey.left)) {
         input.shiftBufferCol(-1);
     } else if (heldDebounce(raylib.KeyboardKey.right)) {
@@ -149,7 +150,7 @@ fn handleKeypress(
 
 fn renderHorizontal(
     _: std.mem.Allocator,
-    _: *const Args,
+    _: *const Config,
     _: *const raylib.Font,
     _: f32,
     _: *InputData,
@@ -200,7 +201,7 @@ fn renderVerticalLine(
 
 fn renderPrompt(
     allocator: std.mem.Allocator,
-    args: *const Args,
+    config: *const Config,
     font: *const raylib.Font,
     font_height: f32,
 ) anyerror!f32 {
@@ -209,13 +210,13 @@ fn renderPrompt(
     //       dimensions instead of just the x value.
     //       Also need to consider how user input would work
     //       and look.
-    if (args.prompt == null or args.prompt.?.len == 0) {
+    if (config.prompt == null or config.prompt.?.len == 0) {
         return 0;
     }
     const c_prompt: [:0]const u8 = try std.fmt.allocPrintZ(
         allocator,
         "{s}",
-        .{args.prompt.?},
+        .{config.prompt.?},
     );
     defer allocator.free(c_prompt);
     var prompt_dims = raylib.measureTextEx(
@@ -249,14 +250,14 @@ fn renderPrompt(
 
 fn renderVertical(
     allocator: std.mem.Allocator,
-    args: *const Args,
+    config: *const Config,
     font: *const raylib.Font,
     font_height: f32,
     input: *InputData,
 ) anyerror!void {
     const prompt_offset: f32 = try renderPrompt(
         allocator,
-        args,
+        config,
         font,
         font_height,
     );
@@ -325,7 +326,7 @@ fn renderVertical(
     if (input.buffer.items.len == 0) {
         // No filtering
         const end = @min(
-            input.rendered_lines_start + args.lines,
+            input.rendered_lines_start + config.lines,
             input.lines.count(),
         );
         for (input.rendered_lines_start..end) |i| {
@@ -345,7 +346,7 @@ fn renderVertical(
     } else {
         // Filtered
         const end = @min(
-            input.rendered_lines_start + args.lines,
+            input.rendered_lines_start + config.lines,
             input.filtered_line_indices.items.len,
         );
         for (input.rendered_lines_start..end) |i| {
@@ -365,12 +366,90 @@ fn renderVertical(
     }
 }
 
+// inline fn fontPaths(allocator: std.mem.Allocator) anyerror![][]const u8 {
+//     switch (builtin.os.tag) {
+//         .windows => {
+//              return .{
+//                 try known_folders.getPath(
+//                     allocator,
+//                     known_folders.KnownFolder.fonts,
+//                 ) orelse .{},
+//             };
+//         },
+//         .macos => {
+//             const home = std.process.getEnvVarOwned(allocator, "HOME");
+//             defer allocator.free(home);
+//             return .{
+//                 std.mem.concat(allocator, u8, .{
+//                     home,
+//                     "/Library/Fonts"
+//                 }),
+//                 std.mem.concat(allocator, u8, .{
+//                     home,
+//                     "/Library/Fonts"
+//                 }),
+//             };
+//         },
+//     }
+// }
+
+const fontconfig = @cImport(@cInclude("fontconfig/fontconfig.h"));
+
+fn fontConfigFindFont() void {
+    const config: *fontconfig.FcConfig = fontconfig.FcInitLoadConfigAndFonts() orelse {
+        std.log.err("Failed to initialise fontconfig, is FONTCONFIG_PATH env var set?", .{});
+        return;
+    };
+    const pattern: *fontconfig.FcPattern = fontconfig.FcPatternCreate() orelse {
+        std.log.err("Failed to create font pattern", .{});
+        return;
+    };
+    const set: *fontconfig.FcObjectSet = fontconfig.FcObjectSetBuild(
+        @as([*c]const u8, fontconfig.FC_FAMILY),
+        @as([*c]const u8, fontconfig.FC_STYLE),
+        @as([*c]const u8, fontconfig.FC_LANG),
+        @as([*c]const u8, fontconfig.FC_FILE),
+        @as([*c]const u8, null),
+    );
+    const font_set: [*c]fontconfig.FcFontSet = fontconfig.FcFontList(
+        config,
+        pattern,
+        set,
+    );
+    defer fontconfig.FcFontSetDestroy(font_set);
+    if (font_set == null) {
+        return;
+    }
+    for (0..@intCast(font_set.*.nfont)) |i| {
+        const font: *fontconfig.FcPattern = font_set.*.fonts[i] orelse {
+            std.log.err("Expected font present, but found nothing at index {d}", .{i});
+            return;
+        };
+        var file: [*c]fontconfig.FcChar8 = undefined;
+        var style: [*c]fontconfig.FcChar8 = undefined;
+        var family: [*c]fontconfig.FcChar8 = undefined;
+        if (fontconfig.FcPatternGetString(font, fontconfig.FC_FILE, 0, &file) == fontconfig.FcResultMatch
+        and fontconfig.FcPatternGetString(font, fontconfig.FC_FAMILY, 0, &family) == fontconfig.FcResultMatch
+        and fontconfig.FcPatternGetString(font, fontconfig.FC_STYLE, 0, &style) == fontconfig.FcResultMatch) {
+            std.log.info("File: {s} (Family: {s}, Style: {s})", .{
+                file[0..std.mem.len(file)],
+                family[0..std.mem.len(family)],
+                style[0..std.mem.len(style)],
+            });
+        }
+    }
+}
+
 fn findFont(
     allocator: std.mem.Allocator,
     font_name: ?[]const u8,
     font_size: i32,
 ) anyerror!raylib.Font {
-    const name = font_name orelse return try raylib.getFontDefault();
+    fontConfigFindFont();
+    const name: []const u8 = font_name orelse {
+        std.log.debug("No font provided, using default", .{});
+        return try raylib.getFontDefault();
+    };
     const maybe_fonts_dir: ?std.fs.Dir = known_folders.open(
         allocator,
         known_folders.KnownFolder.fonts,
@@ -386,9 +465,12 @@ fn findFont(
         if (!try FontExtensions.matchName(allocator, name, file.name)) {
             continue;
         }
-        const font_path = try fonts_dir.realpathAlloc(allocator, file.name);
+        const font_path: []const u8 = try fonts_dir.realpathAlloc(
+            allocator,
+            file.name,
+        );
         defer allocator.free(font_path);
-        const c_font_path = try std.fmt.allocPrintZ(
+        const c_font_path: [:0]const u8 = try std.fmt.allocPrintZ(
             allocator,
             "{s}",
             .{font_path},
@@ -400,13 +482,17 @@ fn findFont(
             null,
         );
     }
+    std.log.warn(
+        "Unable to find font: {s}, using built-in Raylib font\n",
+        .{name},
+    );
     return try raylib.getFontDefault();
 }
 
 pub fn render(
     allocator: std.mem.Allocator,
     input: *InputData,
-    args: Args,
+    config: Config,
 ) anyerror!void {
     raylib.setConfigFlags(.{
         .window_transparent = true,
@@ -433,17 +519,17 @@ pub fn render(
             input.filtered_line_indices.items.len;
         raylib.setWindowSize(
             SCREEN_WIDTH,
-            line_size * @as(i32, @intCast(1 + @min(line_count, args.lines))),
+            line_size * @as(i32, @intCast(1 + @min(line_count, config.lines))),
         );
         raylib.beginDrawing();
         defer raylib.endDrawing();
         raylib.clearBackground(raylib.Color.blank);
-        if (try handleKeypress(allocator, &args, input)) {
+        if (try handleKeypress(allocator, &config, input)) {
             break;
         }
         try renderVertical(
             allocator,
-            &args,
+            &config,
             &font,
             @floatFromInt(font.baseSize),
             input,

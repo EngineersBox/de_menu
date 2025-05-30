@@ -4,7 +4,7 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const raylib= b.dependency("raylib_zig", .{
+    const raylib = b.dependency("raylib_zig", .{
         .target = target,
         .optimize = optimize,
     });
@@ -16,6 +16,15 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    // Mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm
+    // const microwave = b.dependency("microwave", .{
+    //     .target = target,
+    //     .optimize = optimize,
+    // });
+    const fontconfig = b.dependency(
+        "fontconfig",
+        .{ .target = target, .optimize = optimize },
+    );
 
     const exe_mod = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
@@ -29,10 +38,13 @@ pub fn build(b: *std.Build) void {
     });
 
     exe.linkLibrary(raylib.artifact("raylib"));
+    exe.linkSystemLibrary("iconv");
+    exe.linkLibrary(fontconfig.artifact("fontconfig"));
     exe.root_module.addImport("raylib", raylib.module("raylib"));
     exe.root_module.addImport("raygui", raylib.module("raygui"));
     exe.root_module.addImport("clap", clap.module("clap"));
     exe.root_module.addImport("known-folders", known_folders.module("known-folders"));
+    // exe.root_module.addImport("microwave", microwave.module("microwave"));
     b.installArtifact(exe);
 
     const run_cmd = b.addRunArtifact(exe);
