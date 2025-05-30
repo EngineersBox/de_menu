@@ -23,7 +23,16 @@ pub fn build(b: *std.Build) void {
     // });
     const fontconfig = b.dependency(
         "fontconfig",
-        .{ .target = target, .optimize = optimize },
+        .{ 
+            .target = target,
+            .optimize = optimize,
+            // FIXME: The build of libxml2 in engineersbox/zig-build-libxml2
+            //        causes a segfault in the parser, so it's disabled here
+            //        and "expat" is used instead. Update the version of libxml2
+            //        in the dependent repo and all downstream deps, then
+            //        update the fontconfig dependency here and remove this.
+            .@"enable-libxml2" = false,
+        },
     );
 
     const exe_mod = b.createModule(.{
@@ -38,7 +47,8 @@ pub fn build(b: *std.Build) void {
     });
 
     exe.linkLibrary(raylib.artifact("raylib"));
-    exe.linkSystemLibrary("iconv");
+    // TODO: Remove this once libxml2 support is fixed
+    exe.linkSystemLibrary("expat");
     exe.linkLibrary(fontconfig.artifact("fontconfig"));
     exe.root_module.addImport("raylib", raylib.module("raylib"));
     exe.root_module.addImport("raygui", raylib.module("raygui"));
