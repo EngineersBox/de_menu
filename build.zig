@@ -47,6 +47,8 @@ pub fn build(b: *std.Build) void {
     });
 
     exe.linkLibrary(raylib.artifact("raylib"));
+    // NOTE: This GitHub issue is useful for figuring
+    //       out how to link stuff: https://github.com/ziglang/zig/issues/11151
     // TODO: Remove this once libxml2 support is fixed
     exe.linkSystemLibrary("expat");
     exe.linkLibrary(fontconfig.artifact("fontconfig"));
