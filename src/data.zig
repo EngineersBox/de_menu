@@ -2,7 +2,6 @@ const std = @import("std");
 const raylib = @import("raylib");
 const raygui = @import("raygui");
 
-const Args = @import("args.zig").Args;
 const ConcurrentArrayList = @import("containers/concurrent_array_list.zig").ConcurrentArrayList;
 const String = std.ArrayList(u8);
 const UnicodeString = std.ArrayList(i32);
