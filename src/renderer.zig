@@ -418,41 +418,6 @@ fn findFont(
         );
     }
     return raylib.getFontDefault();
-
-    // const set: *fontconfig.FcObjectSet = fontconfig.FcObjectSetBuild(
-    //     @as([*c]const u8, fontconfig.FC_FAMILY),
-    //     @as([*c]const u8, fontconfig.FC_STYLE),
-    //     @as([*c]const u8, fontconfig.FC_LANG),
-    //     @as([*c]const u8, fontconfig.FC_FILE),
-    //     @as([*c]const u8, null),
-    // );
-    // const font_set: [*c]fontconfig.FcFontSet = fontconfig.FcFontList(
-    //     config,
-    //     pattern,
-    //     set,
-    // );
-    // defer fontconfig.FcFontSetDestroy(font_set);
-    // if (font_set == null) {
-    //     return;
-    // }
-    // for (0..@intCast(font_set.*.nfont)) |i| {
-    //     const font: *fontconfig.FcPattern = font_set.*.fonts[i] orelse {
-    //         std.log.err("Expected font present, but found nothing at index {d}", .{i});
-    //         return;
-    //     };
-    //     var file: [*c]fontconfig.FcChar8 = undefined;
-    //     var style: [*c]fontconfig.FcChar8 = undefined;
-    //     var family: [*c]fontconfig.FcChar8 = undefined;
-    //     if (fontconfig.FcPatternGetString(font, fontconfig.FC_FILE, 0, &file) == fontconfig.FcResultMatch
-    //     and fontconfig.FcPatternGetString(font, fontconfig.FC_FAMILY, 0, &family) == fontconfig.FcResultMatch
-    //     and fontconfig.FcPatternGetString(font, fontconfig.FC_STYLE, 0, &style) == fontconfig.FcResultMatch) {
-    //         std.log.info("File: {s} (Family: {s}, Style: {s})", .{
-    //             file[0..std.mem.len(file)],
-    //             family[0..std.mem.len(family)],
-    //             style[0..std.mem.len(style)],
-    //         });
-    //     }
-    // }
 }
 
 pub fn render(
