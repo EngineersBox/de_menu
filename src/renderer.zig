@@ -4,6 +4,7 @@ const raylib = @import("raylib");
 const raygui = @import("raygui");
 const fontconfig = @cImport(@cInclude("fontconfig/fontconfig.h"));
 
+const meta = @import("meta.zig");
 const Config = @import("config.zig").Config;
 const ConcurrentArrayList = @import("containers/concurrent_array_list.zig").ConcurrentArrayList;
 const String = std.ArrayList(u8);
@@ -426,10 +427,15 @@ pub fn render(
         .window_undecorated = true,
     });
     raylib.setTraceLogLevel(raylib.TraceLogLevel.warning);
+    var name = [_]u8{0} ** (meta.NAME.len + 1);
     raylib.initWindow(
         SCREEN_WIDTH,
         SCREEN_HEIGHT,
-        "de_menu",
+        try std.fmt.bufPrintZ(
+            &name,
+            "{s}",
+            .{meta.NAME},
+        ),
     );
     defer raylib.closeWindow();
     const font: raylib.Font = try findFont(
