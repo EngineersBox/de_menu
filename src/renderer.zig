@@ -93,6 +93,7 @@ fn heldDebounce(key: raylib.KeyboardKey) bool {
     return false;
 }
 
+// TODO: Support the same key bindings as dmenu
 fn handleKeypress(
     _: std.mem.Allocator,
     config: *const Config,
