@@ -18,10 +18,10 @@ const Filters = @import("data.zig").Filters;
 const SCREEN_WIDTH = 800;
 const SCREEN_HEIGHT = 450;
 
-const FONT_SIZE: comptime_float = 20.0;
-const FONT_SPACING: comptime_float = 1.0;
-const FONT_NAME = "Monocraft";
-const FONT_COLOUR = raylib.Color.ray_white;
+// const FONT_SIZE: comptime_float = 20.0;
+// const FONT_SPACING: comptime_float = 1.0;
+// const FONT_NAME = "Monocraft";
+// const FONT_COLOUR = raylib.Color.ray_white;
 
 const LINE_PADDING: comptime_float = 1.0;
 const HALF_LINE_PADDING: comptime_float = LINE_PADDING / 2.0;
@@ -29,10 +29,10 @@ const LINE_FILTER: Filter = Filters.contains;
 const LINE_TEXT_OFFSET: comptime_float = 10.0;
 
 const PROMPT_TEXT_OFFSET: comptime_float = 10.0;
-const PROMPT_COLOUR = raylib.Color.dark_blue;
+// const PROMPT_COLOUR = raylib.Color.dark_blue;
 
-const BACKGROUND_COLOUR = raylib.Color.init(32, 31, 30, 0xFF);
-const SELECTED_LINE_COLOUR = raylib.Color.dark_blue;
+// const BACKGROUND_COLOUR = raylib.Color.init(32, 31, 30, 0xFF);
+// const SELECTED_LINE_COLOUR = raylib.Color.dark_blue;
 
 const KEY_PRESS_DEBOUNCE_RATE_MS: comptime_float = 0.1;
 const KEY_INITIAL_HELD_DEBOUNCE_RATE_MS: comptime_float = 0.3;
@@ -160,6 +160,7 @@ fn renderHorizontal(
 
 fn renderVerticalLine(
     allocator: std.mem.Allocator,
+    config: *const Config,
     input: *InputData,
     font: *const raylib.Font,
     i: usize,
@@ -169,9 +170,13 @@ fn renderVerticalLine(
     prompt_offset: f32,
 ) anyerror!void {
     const line_colour: raylib.Color = if (input.cursor_line == i)
-        SELECTED_LINE_COLOUR
+        config.selected_bg
     else
-        BACKGROUND_COLOUR;
+        config.normal_bg;
+    const text_colour: raylib.Color = if (input.cursor_line == i)
+        config.selected_fg
+    else
+        config.normal_fg;
     const int_prompt_offset: i32 = @intFromFloat(prompt_offset);
     raylib.drawRectangle(
         int_prompt_offset,
@@ -193,9 +198,9 @@ fn renderVerticalLine(
             LINE_TEXT_OFFSET + prompt_offset,
             @as(f32, @floatFromInt(y_pos)) + HALF_LINE_PADDING,
         ),
-        FONT_SIZE,
-        FONT_SPACING,
-        FONT_COLOUR,
+        config.font_size,
+        config.font_spacing,
+        text_colour,
     );
 }
 
@@ -222,8 +227,8 @@ fn renderPrompt(
     var prompt_dims = raylib.measureTextEx(
         font.*,
         c_prompt,
-        FONT_SIZE,
-        FONT_SPACING,
+        config.font_size,
+        config.font_spacing,
     );
     prompt_dims.x += PROMPT_TEXT_OFFSET * 2;
     const line_height: i32 = @intFromFloat(font_height + LINE_PADDING);
@@ -232,7 +237,7 @@ fn renderPrompt(
         0,
         @intFromFloat(prompt_dims.x),
         line_height,
-        PROMPT_COLOUR,
+        config.prompt_bg,
     );
     raylib.drawTextEx(
         font.*,
@@ -241,9 +246,9 @@ fn renderPrompt(
             PROMPT_TEXT_OFFSET,
             HALF_LINE_PADDING,
         ),
-        FONT_SIZE,
-        FONT_SPACING,
-        FONT_COLOUR,
+        config.font_size,
+        config.font_spacing,
+        config.prompt_fg,
     );
     return prompt_dims.x;
 }
@@ -268,7 +273,7 @@ fn renderVertical(
         0,
         SCREEN_WIDTH - int_prompt_offset,
         line_height,
-        BACKGROUND_COLOUR,
+        config.normal_bg,
     );
     raylib.drawTextCodepoints(
         font.*,
@@ -277,13 +282,13 @@ fn renderVertical(
             LINE_TEXT_OFFSET + prompt_offset,
             HALF_LINE_PADDING,
         ),
-        FONT_SIZE,
-        FONT_SPACING,
-        FONT_COLOUR,
+        config.font_size,
+        config.font_spacing,
+        config.normal_fg,
     );
     var buffer_col_offset: raylib.Vector2 = raylib.Vector2.init(
         0,
-        FONT_SIZE,
+        config.font_size,
     );
     if (input.buffer.items.len != 0) {
         const buffer: []const c_int = if (input.buffer_col == 0)
@@ -300,8 +305,8 @@ fn renderVertical(
         buffer_col_offset = raylib.measureTextEx(
             font.*,
             c_buffer,
-            FONT_SIZE,
-            FONT_SPACING,
+            config.font_size,
+            config.font_spacing,
         );
         if (input.buffer_col == 0) {
             buffer_col_offset.x = 0;
@@ -317,7 +322,7 @@ fn renderVertical(
             HALF_LINE_PADDING + buffer_col_offset.y,
         ),
         1.0,
-        FONT_COLOUR,
+        config.normal_fg,
     );
     // TODO: Check if text is longer than input field, show only truncated ending if so
 
@@ -333,6 +338,7 @@ fn renderVertical(
             // for (0..@min(args.lines, input.lines.count())) |i| {
             try renderVerticalLine(
                 allocator,
+                config,
                 input,
                 font,
                 i,
@@ -353,6 +359,7 @@ fn renderVertical(
             // for (0..@min(args.lines, input.filtered_line_indices.items.len)) |i| {
             try renderVerticalLine(
                 allocator,
+                config,
                 input,
                 font,
                 i,
@@ -413,7 +420,7 @@ fn findFont(
         defer allocator.free(file_path);
         return try raylib.loadFontEx(
             file_path,
-            @intCast(config.font_size),
+            @intFromFloat(config.font_size),
             null,
         );
     }
