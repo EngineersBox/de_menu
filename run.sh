@@ -14,4 +14,4 @@ case "$(basename "$PWD")" in
 esac
 
 zig build
-echo "Selected: $(ls -t1 | zig-out/bin/de_menu -l 5 -p Test)"
+echo "Selected: $(ls -t1 | zig-out/bin/de_menu -l 5 -p Test -f Monocraft -s 20)"

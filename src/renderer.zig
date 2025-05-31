@@ -368,24 +368,23 @@ fn renderVertical(
 
 fn findFont(
     allocator: std.mem.Allocator,
-    font_name: ?[]const u8,
-    font_size: i32,
+    config: *const Config,
 ) !raylib.Font {
-    const name: []const u8 = font_name orelse {
+    const font_name: []const u8 = config.font orelse {
         std.log.debug("No font supplied, defaulting to Raylib's internal font", .{});
         return raylib.getFontDefault();
     };
-    const config: *fontconfig.FcConfig = fontconfig.FcInitLoadConfigAndFonts() orelse {
+    const fconfig: *fontconfig.FcConfig = fontconfig.FcInitLoadConfigAndFonts() orelse {
         std.log.err("Failed to initialise fontconfig, is FONTCONFIG_PATH env var set?", .{});
         return raylib.getFontDefault();
     };
-    const pattern: *fontconfig.FcPattern = fontconfig.FcNameParse(name.ptr) orelse {
+    const pattern: *fontconfig.FcPattern = fontconfig.FcNameParse(font_name.ptr) orelse {
         std.log.err("Failed to create font pattern", .{});
         return raylib.getFontDefault();
     };
     defer fontconfig.FcPatternDestroy(pattern);
     if (fontconfig.FcConfigSubstitute(
-        config,
+        fconfig,
         pattern,
         fontconfig.FcMatchPattern,
     ) == fontconfig.FcFalse) {
@@ -395,11 +394,11 @@ fn findFont(
     fontconfig.FcDefaultSubstitute(pattern);
     var result: fontconfig.FcResult = undefined;
     const font: *fontconfig.FcPattern = fontconfig.FcFontMatch(
-        config,
+        fconfig,
         pattern,
         &result,
     ) orelse {
-        std.log.err("Font not found: {s}", .{name});
+        std.log.err("Font not found: {s}", .{font_name});
         return raylib.getFontDefault();
     };
     defer fontconfig.FcPatternDestroy(font);
@@ -414,7 +413,7 @@ fn findFont(
         defer allocator.free(file_path);
         return try raylib.loadFontEx(
             file_path,
-            font_size,
+            @intCast(config.font_size),
             null,
         );
     }
@@ -474,8 +473,7 @@ pub fn render(
     defer raylib.closeWindow();
     const font: raylib.Font = try findFont(
         allocator,
-        FONT_NAME,
-        @intFromFloat(FONT_SIZE),
+        &config,
     );
     defer raylib.unloadFont(font);
     const line_size: i32 = font.baseSize + @as(i32, @intFromFloat(LINE_PADDING));

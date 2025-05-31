@@ -11,13 +11,20 @@ pub const Config: type = struct {
     allocator: std.mem.Allocator,
 
     lines: usize = 20,
+    monitor: ?usize = null,
     prompt: ?[]const u8 = null,
+    font: ?[]const u8 = null,
+    font_size: usize = 20,
 
     pub fn initFromStdin(allocator: std.mem.Allocator) anyerror!?@This() {
+        // TODO: Support all dmenu options
         const params = comptime clap.parseParamsComptime(
             \\ -h, --help
             \\ -l, --lines <usize>        lists items vertically, with the given number of lines
+            \\ -m, --monitor <usize>      monitor to render to, leave unset to choose monitor that holds current focus
             \\ -p, --prompt <str>         defines the prompt to be displayed to the left of the input field
+            \\ -f, --font <str>           font to use, must be in a fontconfig discoverable location
+            \\ -s, --font_size <usize>    size of the font, defaults to 20
         );
         var diag = clap.Diagnostic{};
         var res = clap.parse(
@@ -51,8 +58,17 @@ pub const Config: type = struct {
         if (res.args.lines) |lines| {
             config.lines = lines;
         }
+        if (res.args.monitor) |monitor| {
+            config.monitor = monitor;
+        }
         if (res.args.prompt) |prompt| {
             config.prompt = try allocator.dupe(u8, prompt);
+        }
+        if (res.args.font) |font| {
+            config.font = try allocator.dupe(u8, font);
+        }
+        if (res.args.font_size) |font_size| {
+            config.font_size = font_size;
         }
         return config;
     }
@@ -60,6 +76,9 @@ pub const Config: type = struct {
     pub fn deinit(self: *@This()) void {
         if (self.prompt) |prompt| {
             self.allocator.free(prompt);
+        }
+        if (self.font) |font| {
+            self.allocator.free(font);
         }
     }
 };
