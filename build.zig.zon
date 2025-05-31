@@ -12,14 +12,6 @@
             .url = "https://github.com/Hejsil/zig-clap/archive/refs/tags/0.10.0.tar.gz",
             .hash = "clap-0.10.0-oBajB434AQBDh-Ei3YtoKIRxZacVPF1iSwp3IX_ZB8f0",
         },
-        .known_folders = .{
-            .url = "git+https://github.com/ziglibs/known-folders.git#aa24df42183ad415d10bc0a33e6238c437fc0f59",
-            .hash = "known_folders-0.0.0-Fy-PJtLDAADGDOwYwMkVydMSTp_aN-nfjCZw6qPQ2ECL",
-        },
-        .microwave = .{
-            .url = "git+https://github.com/edqx/microwave.git#cf3cf15014b31a1a164035642f8f1f3d9b3cd307",
-            .hash = "microwave-1.0.0-e4c5GQewAQAl_4dBjs6W0ZEI5xGEC4DSfj4DR9T47VzG",
-        },
         .fontconfig = .{
             .url = "https://github.com/engineersbox/zig-build-fontconfig/archive/e84e6f7b0dda4747f003546867d9c88657f06848.tar.gz",
             .hash = "fontconfig-0.0.0-8x2xyjyGeADc59Te0vWc8fYEp1vIpwE21UgTTQYUL-kc",

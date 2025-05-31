@@ -9,7 +9,6 @@ const ConcurrentArrayList = @import("containers/concurrent_array_list.zig").Conc
 const String = std.ArrayList(u8);
 const InputData = @import("data.zig").InputData;
 const Filter = @import("data.zig").Filter;
-const Filters = @import("data.zig").Filters;
 
 // === START CONFIGS ===
 
@@ -18,27 +17,17 @@ const Filters = @import("data.zig").Filters;
 const SCREEN_WIDTH = 800;
 const SCREEN_HEIGHT = 450;
 
-// const FONT_SIZE: comptime_float = 20.0;
-// const FONT_SPACING: comptime_float = 1.0;
-// const FONT_NAME = "Monocraft";
-// const FONT_COLOUR = raylib.Color.ray_white;
-
 const LINE_PADDING: comptime_float = 1.0;
 const HALF_LINE_PADDING: comptime_float = LINE_PADDING / 2.0;
-const LINE_FILTER: Filter = Filters.contains;
 const LINE_TEXT_OFFSET: comptime_float = 10.0;
 
 const PROMPT_TEXT_OFFSET: comptime_float = 10.0;
-// const PROMPT_COLOUR = raylib.Color.dark_blue;
 
-// const BACKGROUND_COLOUR = raylib.Color.init(32, 31, 30, 0xFF);
-// const SELECTED_LINE_COLOUR = raylib.Color.dark_blue;
+// === END CONFIGS ===
 
 const KEY_PRESS_DEBOUNCE_RATE_MS: comptime_float = 0.1;
 const KEY_INITIAL_HELD_DEBOUNCE_RATE_MS: comptime_float = 0.3;
 const KEY_HELD_DEBOUNCE_RATE_MS: comptime_float = 0.1;
-
-// === END CONFIGS ===
 
 const FontExtensions: type = enum {
     // NOTE: Don't capitalise these, they get converted to a string
@@ -143,7 +132,7 @@ fn handleKeypress(
         updated_buffer = true;
     }
     if (updated_buffer) {
-        try input.filterLines(LINE_FILTER);
+        try input.filterLines(config.filter);
     }
     return enter_pressed;
 }

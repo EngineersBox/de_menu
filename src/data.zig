@@ -6,7 +6,7 @@ const ConcurrentArrayList = @import("containers/concurrent_array_list.zig").Conc
 const String = std.ArrayList(u8);
 const UnicodeString = std.ArrayList(i32);
 
-pub const Filter: type = fn (buffer: *const UnicodeString, line: *const String) bool;
+pub const Filter: type = *const fn (buffer: *const UnicodeString, line: *const String) bool;
 
 pub const Filters: type = struct {
     pub fn contains(buffer: *const UnicodeString, line: *const String) bool {
@@ -29,6 +29,17 @@ pub const Filters: type = struct {
         );
     }
 };
+
+pub const FILTERS: std.StaticStringMap(Filter) = std.StaticStringMap(Filter).initComptime(.{
+    .{
+        "contains",
+        Filters.contains,
+    },
+    .{
+        "starts_with",
+        Filters.startsWith,
+    },
+});
 
 pub const InputData: type = struct {
     allocator: std.mem.Allocator,
