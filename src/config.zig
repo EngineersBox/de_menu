@@ -133,7 +133,7 @@ pub const Config: type = struct {
         defer res.deinit();
         if (res.args.help != 0) {
             var writer = std.io.getStdErr().writer();
-            try writer.writeAll("Usage: de_menu [options...]\nOptions:\n");
+            try writer.writeAll("Usage: " ++ meta.NAME ++ " [options...]\nOptions:\n");
             try clap.help(
                 writer,
                 clap.Help,
@@ -143,16 +143,12 @@ pub const Config: type = struct {
             return null;
         } else if (res.args.version != 0) {
             var writer = std.io.getStdErr().writer();
-            const data: []const u8 = try std.fmt.allocPrint(
-                allocator,
-                "de_menu {s} compiled on {s}\n",
-                .{
-                    meta.VERSION,
-                    meta.COMPILATION_DATE,
-                },
+            try writer.writeAll(
+                meta.NAME
+                ++ " version " ++ meta.VERSION 
+                ++ " compiled on " ++ meta.COMPILATION_DATE
+                ++ "\n"
             );
-            defer allocator.free(data);
-            try writer.writeAll(data);
             return null;
         }
         var config: @This() = .{
