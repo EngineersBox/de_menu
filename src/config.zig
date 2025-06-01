@@ -144,15 +144,19 @@ pub const Config: type = struct {
     filter: Filter = Filters.contains,
 
     pub fn initFromStdin(allocator: std.mem.Allocator) anyerror!?@This() {
-        // TODO: Support all dmenu options
+        // NOTE: Should we support case-insensitivity by -i flag,
+        //       or just a filter type? For some filters it might
+        //       not make sense to have a general insensitivity
+        //       flag, so maybe not.
         const params = comptime clap.parseParamsComptime(
             \\ -h, --help                  prints this help text to stdout then exits
             \\ -l, --lines <usize>         lists items vertically, with the given number of lines
             \\ -w, --width <usize>         total width of the menu, inclusive of prompt if present
             \\                             (overrides -b, -t flag width)
-            \\ -x, --pos_x <usize>         screen x position (top left of menu)
-            \\ -y, --pos_y <usize>         screen y position (top left of menu), ignored when -b or
-            \\                             -t flags are set
+            \\ -x, --pos_x <usize>         screen x position (top left of menu), overrides -a flag
+            \\                             x alignment
+            \\ -y, --pos_y <usize>         screen y position (top left of menu), overrides -a flag
+            \\                             y alignment
             \\ -a, --alignment <alignment> comma separated pair of positions for x (t = top, c = centre,
             \\                             b = bottom) and then y (r = right, c = centre, b = bottom)
             \\                             alignment. These are overridden by -w, -x, -y flags.
