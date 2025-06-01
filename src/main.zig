@@ -99,6 +99,6 @@ pub fn main() anyerror!void {
         .{ allocator, std.io.getStdIn(), &input, &should_terminate },
     );
     run_thread.detach();
-    try render(allocator, &input, config);
+    try render(allocator, &input, &config);
     try writeBufferToStdout(&input);
 }

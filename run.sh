@@ -16,4 +16,6 @@ esac
 zig build
 echo "Selected: $(ls -t1 | zig-out/bin/de_menu -l 5 \
                                                -p Test \
-                                               -f Monocraft)"
+                                               -f Monocraft \
+                                               -a c,c \
+                                               -w 800)"

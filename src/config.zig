@@ -54,6 +54,25 @@ fn filterParser(in: []const u8) error{InvalidFilter}!Filter {
     return FILTERS.get(in) orelse error.InvalidFilter;
 }
 
+fn alignmentParser(in: []const u8) error{InvalidAlignment}!Alignment {
+    if (in.len != 3) {
+        return error.InvalidAlignment;
+    }
+    const x: AlignmentX = switch (in[0]) {
+        'l' => AlignmentX.LEFT,
+        'c' => AlignmentX.CENTRE,
+        'r' => AlignmentX.RIGHT,
+        else => return error.InvalidAlignment,
+    };
+    const y: AlignmentY = switch (in[2]) {
+        't' => AlignmentY.TOP,
+        'c' => AlignmentY.CENTRE,
+        'b' => AlignmentY.BOTTOM,
+        else => return error.InvalidAlignment,
+    };
+    return Alignment.init(x, y);
+}
+
 const PARSERS = .{
     .string = clap.parsers.string,
     .str = clap.parsers.string,
@@ -71,13 +90,44 @@ const PARSERS = .{
     .f64 = clap.parsers.float(f64),
     .colour = colourParser,
     .filter = filterParser,
+    .alignment = alignmentParser,
+};
+
+pub const AlignmentY: type = enum {
+    BOTTOM,
+    CENTRE,
+    TOP,
+};
+
+pub const AlignmentX: type = enum {
+    LEFT,
+    CENTRE,
+    RIGHT,
+};
+
+pub const Alignment: type = struct {
+    x: AlignmentX = .CENTRE,
+    y: AlignmentY = .CENTRE,
+
+    pub fn init(x: AlignmentX, y: AlignmentY) @This() {
+        return @This() {
+            .x = x,
+            .y = y,
+        };
+    }
 };
 
 pub const Config: type = struct {
     allocator: std.mem.Allocator,
 
     lines: usize = 20,
-    monitor: ?usize = null,
+
+    width: ?i32 = null,
+    pos_x: ?i32 = null,
+    pos_y: ?i32 = null,
+    alignment: ?Alignment = null,
+
+    monitor: ?i32 = null,
     prompt: ?[]const u8 = null,
 
     font: ?[]const u8 = null,
@@ -96,25 +146,36 @@ pub const Config: type = struct {
     pub fn initFromStdin(allocator: std.mem.Allocator) anyerror!?@This() {
         // TODO: Support all dmenu options
         const params = comptime clap.parseParamsComptime(
-            \\ -h, --help
-            \\ -l, --lines <usize>        lists items vertically, with the given number of lines
-            \\ -m, --monitor <usize>      monitor to render to, leave unset to choose monitor that
-            \\                            holds current focus
-            \\ -p, --prompt <str>         defines the prompt to be displayed to the left of the input
-            \\                            field, omitting this allows the input field and lines to
-            \\                            extend fully to the left
-            \\ -f, --font <str>           font to use, must be in a fontconfig discoverable location
-            \\     --font_size <f32>      size of the font, defaults to 20.0
-            \\     --font_spacing <f32>   spacing between characters of the font, defaults to 1.0
-            \\     --normal_bg <colour>   normal background colour, name or hex string (#RRGGBBAA)
-            \\     --normal_fg <colour>   normal foreground colour, name or hex string (#RRGGBBAA)
-            \\     --selected_bg <colour> selected background colour, name or hex string (#RRGGBBAA)
-            \\     --selected_fg <colour> selected foreground colour, name or hex string (#RRGGBBAA)
-            \\     --prompt_bg <colour>   prompt background colour, name or hex string (#RRGGBBAA)
-            \\     --prompt_fg <colour>   prompt foreground colour, name or hex string (#RRGGBBAA)
-            \\ -s, --filter <filter>      type of filter to use when filtering lines based on user
-            \\                            input, Must be one of: "conatins", "starts_with"
-            \\ -v, --version              prints version information to stdout then exits
+            \\ -h, --help                  prints this help text to stdout then exits
+            \\ -l, --lines <usize>         lists items vertically, with the given number of lines
+            \\ -w, --width <usize>         total width of the menu, inclusive of prompt if present
+            \\                             (overrides -b, -t flag width)
+            \\ -x, --pos_x <usize>         screen x position (top left of menu)
+            \\ -y, --pos_y <usize>         screen y position (top left of menu), ignored when -b or
+            \\                             -t flags are set
+            \\ -a, --alignment <alignment> comma separated pair of positions for x (t = top, c = centre,
+            \\                             b = bottom) and then y (r = right, c = centre, b = bottom)
+            \\                             alignment. These are overridden by -w, -x, -y flags.
+            \\                             Without the -w flag, this will use the whole screen width,
+            \\                             making the h component redundant. With the -w flag, both
+            \\                             the x and y components function as general alignment.
+            \\ -m, --monitor <usize>       monitor to render to, leave unset to choose monitor that
+            \\                             holds current focus
+            \\ -p, --prompt <str>          defines the prompt to be displayed to the left of the input
+            \\                             field, omitting this allows the input field and lines to
+            \\                             extend fully to the left
+            \\ -f, --font <str>            font to use, must be in a fontconfig discoverable location
+            \\     --font_size <f32>       size of the font, defaults to 20.0
+            \\     --font_spacing <f32>    spacing between characters of the font, defaults to 1.0
+            \\     --normal_bg <colour>    normal background colour, name or hex string (#RRGGBBAA)
+            \\     --normal_fg <colour>    normal foreground colour, name or hex string (#RRGGBBAA)
+            \\     --selected_bg <colour>  selected background colour, name or hex string (#RRGGBBAA)
+            \\     --selected_fg <colour>  selected foreground colour, name or hex string (#RRGGBBAA)
+            \\     --prompt_bg <colour>    prompt background colour, name or hex string (#RRGGBBAA)
+            \\     --prompt_fg <colour>    prompt foreground colour, name or hex string (#RRGGBBAA)
+            \\     --filter <filter>       type of filter to use when filtering lines based on user
+            \\                             input, Must be one of: "conatins", "starts_with"
+            \\ -v, --version               prints version information to stdout then exits
         );
         var diag = clap.Diagnostic{};
         var res = clap.parse(
@@ -157,8 +218,20 @@ pub const Config: type = struct {
         if (res.args.lines) |lines| {
             config.lines = lines;
         }
+        if (res.args.width) |width| {
+            config.width = @intCast(width);
+        }
+        if (res.args.pos_x) |pos_x| {
+            config.pos_x = @intCast(pos_x);
+        }
+        if (res.args.pos_y) |pos_y| {
+            config.pos_y = @intCast(pos_y);
+        }
+        if (res.args.alignment) |alignment| {
+            config.alignment = alignment;
+        }
         if (res.args.monitor) |monitor| {
-            config.monitor = monitor;
+            config.monitor = @intCast(monitor);
         }
         if (res.args.prompt) |prompt| {
             config.prompt = try allocator.dupe(u8, prompt);

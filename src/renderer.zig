@@ -6,6 +6,9 @@ const fontconfig = @cImport(@cInclude("fontconfig/fontconfig.h"));
 
 const meta = @import("meta.zig");
 const Config = @import("config.zig").Config;
+const Alignment = @import("config.zig").Alignment;
+const AlignmentX = @import("config.zig").AlignmentX;
+const AlignmentY = @import("config.zig").AlignmentY;
 const ConcurrentArrayList = @import("containers/concurrent_array_list.zig").ConcurrentArrayList;
 const String = std.ArrayList(u8);
 const InputData = @import("data.zig").InputData;
@@ -14,10 +17,6 @@ const Filter = @import("data.zig").Filter;
 // === START CONFIGS ===
 
 // TODO: Make all of these constants configurable via CLI
-//       and/or dotfile
-const SCREEN_WIDTH = 800;
-const SCREEN_HEIGHT = 450;
-
 const LINE_PADDING: comptime_float = 1.0;
 const HALF_LINE_PADDING: comptime_float = LINE_PADDING / 2.0;
 const LINE_TEXT_OFFSET: comptime_float = 10.0;
@@ -25,6 +24,10 @@ const LINE_TEXT_OFFSET: comptime_float = 10.0;
 const PROMPT_TEXT_OFFSET: comptime_float = 10.0;
 
 // === END CONFIGS ===
+
+// Defaults
+const WINDOW_WIDTH: comptime_int = 800;
+const WINDOW_HEIGHT: comptime_int = 600;
 
 const KEY_PRESS_DEBOUNCE_RATE_MS: comptime_float = 0.1;
 const KEY_INITIAL_HELD_DEBOUNCE_RATE_MS: comptime_float = 0.3;
@@ -172,7 +175,7 @@ fn renderVerticalLine(
     raylib.drawRectangle(
         int_prompt_offset,
         y_pos,
-        SCREEN_WIDTH - int_prompt_offset,
+        config.width.? - int_prompt_offset,
         line_height,
         line_colour,
     );
@@ -262,7 +265,7 @@ fn renderVertical(
     raylib.drawRectangle(
         int_prompt_offset,
         0,
-        SCREEN_WIDTH - int_prompt_offset,
+        config.width.? - int_prompt_offset,
         line_height,
         config.normal_bg,
     );
@@ -418,10 +421,67 @@ fn findFont(
     return raylib.getFontDefault();
 }
 
+const Position: type = struct {
+    x: i32,
+    y: i32,
+};
+
+fn alignPosX(config: *Config) void {
+    if (config.pos_x != null) {
+        if (config.width == null) {
+            config.width = WINDOW_WIDTH;
+        }
+        return;
+    }
+    const mon_width: i32 = raylib.getMonitorWidth(config.monitor.?);
+    var alignment: AlignmentX = undefined;
+    if (config.alignment) |a| {
+        alignment = a.x;
+        if (config.width == null) {
+            config.width = mon_width;
+        }
+    } else {
+        alignment = AlignmentX.CENTRE;
+        if (config.width == null) {
+            config.width = WINDOW_WIDTH;
+        }
+    }
+    config.pos_x = switch (alignment) {
+        AlignmentX.LEFT => 0,
+        AlignmentX.CENTRE => @divExact(mon_width, 2) - @divExact(config.width.?, 2),
+        AlignmentX.RIGHT => mon_width - config.width.?,
+    };
+}
+
+fn alignPosY(config: *Config, line_height: i32) void {
+    if (config.pos_y != null) {
+        return;
+    }
+    const alignment: AlignmentY = if (config.alignment) |alignment|
+        alignment.y
+    else
+        AlignmentY.CENTRE;
+    const height: i32 = @as(i32, @intCast(config.lines + 1)) * line_height;
+    const mon_height: i32 = raylib.getMonitorHeight(config.monitor.?);
+    config.pos_y = switch (alignment) {
+        AlignmentY.TOP => 0,
+        AlignmentY.CENTRE => @divExact(mon_height, 2) - @divExact(height, 2),
+        AlignmentY.BOTTOM => mon_height - height,
+    };
+}
+
+inline fn inferWindowPosition(config: *Config, line_height: i32) void {
+    if (config.monitor == null) {
+        config.monitor = raylib.getCurrentMonitor();
+    }
+    alignPosX(config);
+    alignPosY(config, line_height);
+}
+
 pub fn render(
     allocator: std.mem.Allocator,
     input: *InputData,
-    config: Config,
+    config: *Config,
 ) anyerror!void {
     raylib.setConfigFlags(.{
         .window_transparent = true,
@@ -430,8 +490,9 @@ pub fn render(
     raylib.setTraceLogLevel(raylib.TraceLogLevel.warning);
     var name = [_]u8{0} ** (meta.NAME.len + 1);
     raylib.initWindow(
-        SCREEN_WIDTH,
-        SCREEN_HEIGHT,
+        // Arbitrary, window will auto-resize in render loop
+        WINDOW_WIDTH,
+        WINDOW_HEIGHT,
         try std.fmt.bufPrintZ(
             &name,
             "{s}",
@@ -441,28 +502,33 @@ pub fn render(
     defer raylib.closeWindow();
     const font: raylib.Font = try findFont(
         allocator,
-        &config,
+        config,
     );
     defer raylib.unloadFont(font);
     const line_size: i32 = font.baseSize + @as(i32, @intFromFloat(LINE_PADDING));
+    inferWindowPosition(config, line_size);
+    raylib.setWindowPosition(
+        @intCast(config.pos_x.?),
+        @intCast(config.pos_y.?),
+    );
     while (true) {
         const line_count: usize = if (input.buffer.items.len == 0)
             input.lines.count()
         else
             input.filtered_line_indices.items.len;
         raylib.setWindowSize(
-            SCREEN_WIDTH,
+            config.width.?,
             line_size * @as(i32, @intCast(1 + @min(line_count, config.lines))),
         );
         raylib.beginDrawing();
         defer raylib.endDrawing();
         raylib.clearBackground(raylib.Color.blank);
-        if (try handleKeypress(allocator, &config, input)) {
+        if (try handleKeypress(allocator, config, input)) {
             break;
         }
         try renderVertical(
             allocator,
-            &config,
+            config,
             &font,
             @floatFromInt(font.baseSize),
             input,
