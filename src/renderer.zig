@@ -418,11 +418,6 @@ fn findFont(
     return raylib.getFontDefault();
 }
 
-const Position: type = struct {
-    x: i32,
-    y: i32,
-};
-
 fn alignPosX(config: *Config) void {
     if (config.pos_x != null) {
         if (config.width == null) {
