@@ -195,7 +195,7 @@ fn renderVerticalLine(
 }
 
 fn renderPrompt(
-    allocator: std.mem.Allocator,
+    _: std.mem.Allocator,
     config: *const Config,
     font: *const raylib.Font,
     font_height: f32,
@@ -208,15 +208,9 @@ fn renderPrompt(
     if (config.prompt == null or config.prompt.?.len == 0) {
         return 0;
     }
-    const c_prompt: [:0]const u8 = try std.fmt.allocPrintZ(
-        allocator,
-        "{s}",
-        .{config.prompt.?},
-    );
-    defer allocator.free(c_prompt);
     var prompt_dims = raylib.measureTextEx(
         font.*,
-        c_prompt,
+        config.prompt.?,
         config.font_size,
         config.font_spacing,
     );
@@ -231,7 +225,7 @@ fn renderPrompt(
     );
     raylib.drawTextEx(
         font.*,
-        c_prompt,
+        config.prompt.?,
         raylib.Vector2.init(
             config.prompt_text_offset,
             config.prompt_text_padding / 2.0,

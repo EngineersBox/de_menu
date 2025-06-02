@@ -110,7 +110,7 @@ pub const Alignment: type = struct {
     y: AlignmentY = .CENTRE,
 
     pub fn init(x: AlignmentX, y: AlignmentY) @This() {
-        return @This() {
+        return @This(){
             .x = x,
             .y = y,
         };
@@ -128,7 +128,7 @@ pub const Config: type = struct {
     alignment: ?Alignment = null,
 
     monitor: ?i32 = null,
-    prompt: ?[]const u8 = null,
+    prompt: ?[:0]const u8 = null,
 
     line_text_offset: f32 = 10.0,
     line_text_padding: f32 = 1.0,
@@ -217,12 +217,7 @@ pub const Config: type = struct {
             return null;
         } else if (res.args.version != 0) {
             var writer = std.io.getStdErr().writer();
-            try writer.writeAll(
-                meta.NAME
-                ++ " version " ++ meta.VERSION 
-                ++ " compiled on " ++ meta.COMPILATION_DATE
-                ++ "\n"
-            );
+            try writer.writeAll(meta.NAME ++ " version " ++ meta.VERSION ++ " compiled on " ++ meta.COMPILATION_DATE ++ "\n");
             return null;
         }
         var config: @This() = .{
@@ -247,7 +242,11 @@ pub const Config: type = struct {
             config.monitor = @intCast(monitor);
         }
         if (res.args.prompt) |prompt| {
-            config.prompt = try allocator.dupe(u8, prompt);
+            config.prompt = try std.fmt.allocPrintZ(
+                allocator,
+                "{s}",
+                .{prompt},
+            );
         }
         if (res.args.font) |font| {
             config.font = try allocator.dupe(u8, font);
