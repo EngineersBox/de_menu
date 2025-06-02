@@ -7,8 +7,8 @@ const KnownFolders = @import("known-folders");
 const render = @import("renderer.zig").render;
 const Config = @import("config.zig").Config;
 const InputData = @import("data.zig").InputData;
+const CString = @import("data.zig").CString;
 const ConcurrentArrayList = @import("containers/concurrent_array_list.zig").ConcurrentArrayList;
-const String = std.ArrayList(u8);
 
 const DELIMITER: comptime_int = if (builtin.target.os.tag == .windows) '\r' else '\n';
 
@@ -28,13 +28,13 @@ fn run(
     var reader = stdin.reader();
     defer stdin.close();
     while (!should_terminate.*) {
-        var line: String = String.init(allocator);
+        var line = std.ArrayList(u8).init(allocator);
         reader.streamUntilDelimiter(
             line.writer(),
             DELIMITER,
             null,
         ) catch |err| switch (err) {
-            error.EndOfStream => break, 
+            error.EndOfStream => break,
             error.StreamTooLong => {
                 // Make do with what we have
                 @panic("Input stream too long");
@@ -50,15 +50,16 @@ fn run(
             // as CR on windows, which follows with LF after.
             return line.fromOwnedSlice(
                 allocator,
-                std.mem.trimLeft(
-                    u8,
-                    try line.toOwnedSlice(),
-                    "\n"
-                ),
+                std.mem.trimLeft(u8, try line.toOwnedSlice(), "\n"),
             )
         else
             line;
-        try input.lines.append(trimmed_line);
+        defer trimmed_line.deinit();
+        try input.lines.append(try std.fmt.allocPrintZ(
+            allocator,
+            "{s}",
+            .{trimmed_line.items},
+        ));
     }
 }
 

@@ -3,28 +3,28 @@ const raylib = @import("raylib");
 const raygui = @import("raygui");
 
 const ConcurrentArrayList = @import("containers/concurrent_array_list.zig").ConcurrentArrayList;
-const String = std.ArrayList(u8);
+pub const CString = [:0]const u8;
 const UnicodeString = std.ArrayList(i32);
 
-pub const Filter: type = *const fn (buffer: *const UnicodeString, line: *const String) bool;
+pub const Filter: type = *const fn (buffer: *const UnicodeString, line: CString) bool;
 
 pub const Filters: type = struct {
-    pub fn contains(buffer: *const UnicodeString, line: *const String) bool {
-        const line_unicode: []i32 = raylib.loadCodepoints(line.items) catch return false;
+    pub fn contains(buffer: *const UnicodeString, line: CString) bool {
+        const line_unicode: []i32 = raylib.loadCodepoints(line) catch return false;
         defer raylib.unloadCodepoints(line_unicode);
         return std.mem.containsAtLeast(
             i32,
-            line_unicode[0..line.items.len],
+            line_unicode[0..line.len],
             1,
             buffer.items,
         );
     }
-    pub fn startsWith(buffer: *const UnicodeString, line: *const String) bool {
-        const line_unicode: []i32 = raylib.loadCodepoints(line.items) catch return false;
+    pub fn startsWith(buffer: *const UnicodeString, line: CString) bool {
+        const line_unicode: []i32 = raylib.loadCodepoints(line) catch return false;
         defer raylib.unloadCodepoints(line_unicode);
         return std.mem.startsWith(
             i32,
-            line_unicode[0..line.items.len],
+            line_unicode[0..line.len],
             buffer.items,
         );
     }
@@ -43,7 +43,7 @@ pub const FILTERS: std.StaticStringMap(Filter) = std.StaticStringMap(Filter).ini
 
 pub const InputData: type = struct {
     allocator: std.mem.Allocator,
-    lines: ConcurrentArrayList(String),
+    lines: ConcurrentArrayList(CString),
     rendered_lines_start: usize,
     filtered_line_indices: std.ArrayList(usize),
     cursor_line: ?usize,
@@ -53,7 +53,7 @@ pub const InputData: type = struct {
     pub fn new(allocator: std.mem.Allocator) @This() {
         return @This(){
             .allocator = allocator,
-            .lines = ConcurrentArrayList(String).init(allocator),
+            .lines = ConcurrentArrayList(CString).init(allocator),
             .rendered_lines_start = 0,
             .filtered_line_indices = std.ArrayList(usize).init(allocator),
             .cursor_line = 0,
@@ -64,8 +64,8 @@ pub const InputData: type = struct {
 
     pub fn deinit(self: *@This()) void {
         self.lines.rwlock.lock();
-        for (self.lines.array_list.items) |*line| {
-            line.*.deinit();
+        for (self.lines.array_list.items) |line| {
+            self.allocator.free(line);
         }
         self.lines.rwlock.unlock();
         self.lines.deinit();
@@ -80,15 +80,15 @@ pub const InputData: type = struct {
         if (filtered) {
             cursor_line = self.filtered_line_indices.items[cursor_line];
         }
-        const line: *const String = &self.lines.get(cursor_line);
+        const line: CString = self.lines.get(cursor_line);
         // Filtered have changed, so previous cursor line is invalid
         self.cursor_line = 0;
         // Convert to unicode
-        const codepoints: []i32 = try raylib.loadCodepoints(line.items);
+        const codepoints: []i32 = try raylib.loadCodepoints(line);
         defer raylib.unloadCodepoints(codepoints);
-        try self.buffer.appendSlice(codepoints[0..line.items.len]);
+        try self.buffer.appendSlice(codepoints[0..line.len]);
         // Put blinking cursor at the end of the buffer
-        self.buffer_col = line.items.len;
+        self.buffer_col = line.len;
     }
 
     pub fn shiftCursorLine(self: *@This(), shift: isize, lines_window_size: usize) void {
@@ -138,7 +138,7 @@ pub const InputData: type = struct {
         self.filtered_line_indices.clearAndFree();
         self.lines.rwlock.lockShared();
         defer self.lines.rwlock.unlockShared();
-        for (self.lines.array_list.items, 0..) |*line, i| {
+        for (self.lines.array_list.items, 0..) |line, i| {
             if (filter(&self.buffer, line)) {
                 try self.filtered_line_indices.append(i);
             }

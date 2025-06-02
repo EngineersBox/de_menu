@@ -10,8 +10,8 @@ const Alignment = @import("config.zig").Alignment;
 const AlignmentX = @import("config.zig").AlignmentX;
 const AlignmentY = @import("config.zig").AlignmentY;
 const ConcurrentArrayList = @import("containers/concurrent_array_list.zig").ConcurrentArrayList;
-const String = std.ArrayList(u8);
 const InputData = @import("data.zig").InputData;
+const CString = @import("data.zig").CString;
 const Filter = @import("data.zig").Filter;
 
 // Defaults
@@ -94,7 +94,6 @@ fn heldDebounce(key: raylib.KeyboardKey) bool {
 
 // TODO: Support the same key bindings as dmenu
 fn handleKeypress(
-    _: std.mem.Allocator,
     config: *const Config,
     input: *InputData,
 ) anyerror!bool {
@@ -149,12 +148,11 @@ fn renderHorizontal(
 }
 
 fn renderVerticalLine(
-    allocator: std.mem.Allocator,
     config: *const Config,
     input: *InputData,
     font: *const raylib.Font,
     i: usize,
-    line: String,
+    line: CString,
     y_pos: i32,
     line_height: i32,
     prompt_offset: f32,
@@ -175,15 +173,9 @@ fn renderVerticalLine(
         line_height,
         line_colour,
     );
-    const c_line: [:0]const u8 = try std.fmt.allocPrintZ(
-        allocator,
-        "{s}",
-        .{line.items},
-    );
-    defer allocator.free(c_line);
     raylib.drawTextEx(
         font.*,
-        c_line,
+        line,
         raylib.Vector2.init(
             config.line_text_offset + prompt_offset,
             @as(f32, @floatFromInt(y_pos)) + (config.line_text_padding / 2.0),
@@ -195,7 +187,6 @@ fn renderVerticalLine(
 }
 
 fn renderPrompt(
-    _: std.mem.Allocator,
     config: *const Config,
     font: *const raylib.Font,
     font_height: f32,
@@ -238,14 +229,12 @@ fn renderPrompt(
 }
 
 fn renderVertical(
-    allocator: std.mem.Allocator,
     config: *const Config,
     font: *const raylib.Font,
     font_height: f32,
     input: *InputData,
 ) anyerror!void {
     const prompt_offset: f32 = try renderPrompt(
-        allocator,
         config,
         font,
         font_height,
@@ -322,7 +311,6 @@ fn renderVertical(
         for (input.rendered_lines_start..end) |i| {
             // for (0..@min(args.lines, input.lines.count())) |i| {
             try renderVerticalLine(
-                allocator,
                 config,
                 input,
                 font,
@@ -343,7 +331,6 @@ fn renderVertical(
         for (input.rendered_lines_start..end) |i| {
             // for (0..@min(args.lines, input.filtered_line_indices.items.len)) |i| {
             try renderVerticalLine(
-                allocator,
                 config,
                 input,
                 font,
@@ -509,11 +496,10 @@ pub fn render(
         raylib.beginDrawing();
         defer raylib.endDrawing();
         raylib.clearBackground(raylib.Color.blank);
-        if (try handleKeypress(allocator, config, input)) {
+        if (try handleKeypress(config, input)) {
             break;
         }
         try renderVertical(
-            allocator,
             config,
             &font,
             @floatFromInt(font.baseSize),
