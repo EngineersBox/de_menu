@@ -30,6 +30,18 @@ const build_zon: struct {
 const SOURCE_DIR = "src/";
 const META_FILE = SOURCE_DIR ++ "meta.zig";
 
+const TARGETS = [_]std.Target.Query {
+    .{ .os_tag = .linux, .cpu_arch = .aarch64, },
+    .{ .os_tag = .linux, .cpu_arch = .x86_64, },
+    .{ .os_tag = .linux, .cpu_arch = .x86, },
+
+    .{ .os_tag = .macos, .cpu_arch = .aarch64, },
+    .{ .os_tag = .macos, .cpu_arch = .x86_64, },
+
+    .{ .os_tag = .windows, .cpu_arch = .aarch64, },
+    .{ .os_tag = .windows, .cpu_arch = .x86_64, },
+};
+
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
@@ -66,32 +78,40 @@ pub fn build(b: *std.Build) void {
     //     .target = target,
     //     .optimize = optimize,
     // });
-    const exe_mod = b.createModule(.{
+    // exe.root_module.addImport("microwave", microwave.module("microwave"));
+    const host_exe_mod = b.createModule(.{
         .root_source_file = b.path("src/main.zig"),
         .target = target,
         .optimize = optimize,
     });
+    const host_exe = create_exe(
+        b,
+        host_exe_mod,
+        raylib,
+        clap,
+        fontconfig
+    );
+    host_exe.step.dependOn(writeMetaFileStep(b));
+    b.installArtifact(host_exe);
 
-    const exe = b.addExecutable(.{
-        .name = "de_menu",
-        .root_module = exe_mod,
-    });
-    exe.step.dependOn(writeMetaFileStep(b));
+    // TODO: Fix libxml2 dep in order to allow cross-compilation
+    // for (TARGETS) |target_query| {
+    //     const exe_mod = b.createModule(.{
+    //         .root_source_file = b.path("src/main.zig"),
+    //         .target = b.resolveTargetQuery(target_query),
+    //         .optimize = optimize,
+    //     });
+    //     const exe = create_exe(
+    //         b,
+    //         exe_mod,
+    //         raylib,
+    //         clap,
+    //         fontconfig
+    //     );
+    //     b.installArtifact(exe);
+    // }
 
-    exe.linkLibrary(raylib.artifact("raylib"));
-    // NOTE: This GitHub issue is useful for figuring
-    //       out how to link stuff: https://github.com/ziglang/zig/issues/11151
-    // TODO: Remove this once libxml2 support is fixed
-    exe.linkSystemLibrary("expat");
-    exe.linkLibrary(fontconfig.artifact("fontconfig"));
-    // exe.root_module.addImport("build_zon", build_zon);
-    exe.root_module.addImport("raylib", raylib.module("raylib"));
-    exe.root_module.addImport("raygui", raylib.module("raygui"));
-    exe.root_module.addImport("clap", clap.module("clap"));
-    // exe.root_module.addImport("microwave", microwave.module("microwave"));
-    b.installArtifact(exe);
-
-    const run_cmd = b.addRunArtifact(exe);
+    const run_cmd = b.addRunArtifact(host_exe);
     run_cmd.step.dependOn(b.getInstallStep());
     if (b.args) |args| {
         run_cmd.addArgs(args);
@@ -101,7 +121,7 @@ pub fn build(b: *std.Build) void {
     run_step.dependOn(&run_cmd.step);
 
     const exe_unit_tests = b.addTest(.{
-        .root_module = exe_mod,
+        .root_module = host_exe_mod,
     });
     const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
 
@@ -127,4 +147,28 @@ fn writeMetaFileStep(b: *std.Build) *std.Build.Step {
         META_FILE,
     );
     return &write_version_step.step;
+}
+
+fn create_exe(
+    b: *std.Build,
+    module: *std.Build.Module,
+    raylib: *std.Build.Dependency,
+    clap: *std.Build.Dependency,
+    fontconfig: *std.Build.Dependency,
+) *std.Build.Step.Compile {
+    const exe = b.addExecutable(.{
+        .name = "de_menu",
+        .root_module = module,
+    });
+    exe.linkLibrary(raylib.artifact("raylib"));
+    // NOTE: This GitHub issue is useful for figuring
+    //       out how to link stuff: https://github.com/ziglang/zig/issues/11151
+    // TODO: Remove this once libxml2 support is fixed
+    exe.linkSystemLibrary("expat");
+    exe.linkLibrary(fontconfig.artifact("fontconfig"));
+    // exe.root_module.addImport("build_zon", build_zon);
+    exe.root_module.addImport("raylib", raylib.module("raylib"));
+    exe.root_module.addImport("raygui", raylib.module("raygui"));
+    exe.root_module.addImport("clap", clap.module("clap"));
+    return exe;
 }
