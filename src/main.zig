@@ -27,19 +27,24 @@ fn run(
 ) anyerror!void {
     var reader = stdin.reader();
     defer stdin.close();
-    while (!should_terminate.*) {
+    var found_eof: bool = false;
+    while (!should_terminate.* and !found_eof) {
         var line = std.ArrayList(u8).init(allocator);
         reader.streamUntilDelimiter(
             line.writer(),
             DELIMITER,
             null,
         ) catch |err| switch (err) {
-            error.EndOfStream => break,
+            error.EndOfStream => {
+                // Assume the line has data, break later
+                found_eof = true;
+            },
             error.StreamTooLong => {
                 // Make do with what we have
                 @panic("Input stream too long");
             },
             else => {
+                std.log.err("Error: {}", .{err});
                 @panic("Unknown error");
             },
         };
@@ -55,6 +60,9 @@ fn run(
         else
             line;
         defer trimmed_line.deinit();
+        if (trimmed_line.items.len == 0) {
+            continue;
+        }
         // NOTE: Pre-convert to a CString to avoid needing to do it
         //       repeatedly during the render loop
         try input.lines.append(try std.fmt.allocPrintZ(
@@ -68,7 +76,7 @@ fn run(
 fn writeBufferToStdout(input: *const InputData) anyerror!void {
     if (input.buffer.items.len == 0) {
         // Nothing was selected, nothing to write out
-        return;
+        std.process.exit(1);
     }
     var stdout: std.fs.File = std.io.getStdOut();
     const buffer: [:0]const u8 = raylib.loadUTF8(input.buffer.items);
@@ -104,4 +112,5 @@ pub fn main() anyerror!void {
     run_thread.detach();
     try render(allocator, &input, &config);
     try writeBufferToStdout(&input);
+    std.process.cleanExit();
 }

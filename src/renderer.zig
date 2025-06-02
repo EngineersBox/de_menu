@@ -421,7 +421,7 @@ fn alignPosX(config: *Config) void {
     }
     config.pos_x = switch (alignment) {
         AlignmentX.LEFT => 0,
-        AlignmentX.CENTRE => @divExact(mon_width, 2) - @divExact(config.width.?, 2),
+        AlignmentX.CENTRE => @divExact(mon_width, 2) - @divTrunc(config.width.?, 2),
         AlignmentX.RIGHT => mon_width - config.width.?,
     };
 }
@@ -438,7 +438,7 @@ fn alignPosY(config: *Config, line_height: i32) void {
     const mon_height: i32 = raylib.getMonitorHeight(config.monitor.?);
     config.pos_y = switch (alignment) {
         AlignmentY.TOP => 0,
-        AlignmentY.CENTRE => @divExact(mon_height, 2) - @divExact(height, 2),
+        AlignmentY.CENTRE => @divExact(mon_height, 2) - @divTrunc(height, 2),
         AlignmentY.BOTTOM => mon_height - height,
     };
 }
