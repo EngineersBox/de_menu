@@ -87,6 +87,7 @@ pub fn build(b: *std.Build) void {
     const host_exe = create_exe(
         b,
         host_exe_mod,
+        // build_zon,
         raylib,
         clap,
         fontconfig
@@ -104,6 +105,7 @@ pub fn build(b: *std.Build) void {
     //     const exe = create_exe(
     //         b,
     //         exe_mod,
+    //         // build_zon,
     //         raylib,
     //         clap,
     //         fontconfig
@@ -152,6 +154,7 @@ fn writeMetaFileStep(b: *std.Build) *std.Build.Step {
 fn create_exe(
     b: *std.Build,
     module: *std.Build.Module,
+    // build_zon: *std.Build.Module,
     raylib: *std.Build.Dependency,
     clap: *std.Build.Dependency,
     fontconfig: *std.Build.Dependency,

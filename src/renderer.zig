@@ -14,19 +14,6 @@ const String = std.ArrayList(u8);
 const InputData = @import("data.zig").InputData;
 const Filter = @import("data.zig").Filter;
 
-// === START CONFIGS ===
-
-// TODO: Make all of these constants configurable via CLI
-// const LINE_PADDING: comptime_float = 1.0;
-// const HALF_LINE_PADDING: comptime_float = LINE_PADDING / 2.0;
-// const LINE_TEXT_OFFSET: comptime_float = 10.0;
-//
-// const PROMPT_TEXT_OFFSET: comptime_float = 10.0;
-// const PROMPT_TEXT_PADDING = 1.0;
-// const HALF_PROMPT_TEXT_PADDING = PROMPT_TEXT_PADDING / 2.0;
-
-// === END CONFIGS ===
-
 // Defaults
 const WINDOW_WIDTH: comptime_int = 800;
 const WINDOW_HEIGHT: comptime_int = 600;
