@@ -17,11 +17,13 @@ const Filter = @import("data.zig").Filter;
 // === START CONFIGS ===
 
 // TODO: Make all of these constants configurable via CLI
-const LINE_PADDING: comptime_float = 1.0;
-const HALF_LINE_PADDING: comptime_float = LINE_PADDING / 2.0;
-const LINE_TEXT_OFFSET: comptime_float = 10.0;
-
-const PROMPT_TEXT_OFFSET: comptime_float = 10.0;
+// const LINE_PADDING: comptime_float = 1.0;
+// const HALF_LINE_PADDING: comptime_float = LINE_PADDING / 2.0;
+// const LINE_TEXT_OFFSET: comptime_float = 10.0;
+//
+// const PROMPT_TEXT_OFFSET: comptime_float = 10.0;
+// const PROMPT_TEXT_PADDING = 1.0;
+// const HALF_PROMPT_TEXT_PADDING = PROMPT_TEXT_PADDING / 2.0;
 
 // === END CONFIGS ===
 
@@ -189,8 +191,8 @@ fn renderVerticalLine(
         font.*,
         c_line,
         raylib.Vector2.init(
-            LINE_TEXT_OFFSET + prompt_offset,
-            @as(f32, @floatFromInt(y_pos)) + HALF_LINE_PADDING,
+            config.line_text_offset + prompt_offset,
+            @as(f32, @floatFromInt(y_pos)) + (config.line_text_padding / 2.0),
         ),
         config.font_size,
         config.font_spacing,
@@ -224,8 +226,8 @@ fn renderPrompt(
         config.font_size,
         config.font_spacing,
     );
-    prompt_dims.x += PROMPT_TEXT_OFFSET * 2;
-    const line_height: i32 = @intFromFloat(font_height + LINE_PADDING);
+    prompt_dims.x += config.prompt_text_offset * 2;
+    const line_height: i32 = @intFromFloat(font_height + config.prompt_text_padding);
     raylib.drawRectangle(
         0,
         0,
@@ -237,8 +239,8 @@ fn renderPrompt(
         font.*,
         c_prompt,
         raylib.Vector2.init(
-            PROMPT_TEXT_OFFSET,
-            HALF_LINE_PADDING,
+            config.prompt_text_offset,
+            config.prompt_text_padding / 2.0,
         ),
         config.font_size,
         config.font_spacing,
@@ -261,20 +263,20 @@ fn renderVertical(
         font_height,
     );
     const int_prompt_offset: i32 = @intFromFloat(prompt_offset);
-    const line_height: i32 = @intFromFloat(font_height + LINE_PADDING);
+    const prompt_line_height: i32 = @intFromFloat(font_height + config.prompt_text_padding);
     raylib.drawRectangle(
         int_prompt_offset,
         0,
         config.width.? - int_prompt_offset,
-        line_height,
+        prompt_line_height,
         config.normal_bg,
     );
     raylib.drawTextCodepoints(
         font.*,
         input.buffer.items,
         raylib.Vector2.init(
-            LINE_TEXT_OFFSET + prompt_offset,
-            HALF_LINE_PADDING,
+            config.prompt_text_offset + prompt_offset,
+            config.prompt_text_padding / 2.0,
         ),
         config.font_size,
         config.font_spacing,
@@ -308,12 +310,12 @@ fn renderVertical(
     }
     raylib.drawLineEx(
         raylib.Vector2.init(
-            LINE_TEXT_OFFSET + prompt_offset + buffer_col_offset.x,
-            HALF_LINE_PADDING,
+            config.prompt_text_offset + prompt_offset + buffer_col_offset.x,
+            config.prompt_text_padding / 2.0,
         ),
         raylib.Vector2.init(
-            LINE_TEXT_OFFSET + prompt_offset + buffer_col_offset.x,
-            HALF_LINE_PADDING + buffer_col_offset.y,
+            config.prompt_text_offset + prompt_offset + buffer_col_offset.x,
+            (config.prompt_text_padding / 2.0) + buffer_col_offset.y,
         ),
         1.0,
         config.normal_fg,
@@ -321,6 +323,7 @@ fn renderVertical(
     // TODO: Check if text is longer than input field, show only truncated ending if so
 
     // Lines
+    const line_height: i32 = @intFromFloat(font_height + config.line_text_padding);
     var y_pos: i32 = line_height;
     if (input.buffer.items.len == 0) {
         // No filtering
@@ -505,7 +508,7 @@ pub fn render(
         config,
     );
     defer raylib.unloadFont(font);
-    const line_size: i32 = font.baseSize + @as(i32, @intFromFloat(LINE_PADDING));
+    const line_size: i32 = font.baseSize + @as(i32, @intFromFloat(config.line_text_padding));
     inferWindowPosition(config, line_size);
     raylib.setWindowPosition(
         @intCast(config.pos_x.?),

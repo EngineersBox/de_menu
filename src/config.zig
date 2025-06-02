@@ -130,6 +130,11 @@ pub const Config: type = struct {
     monitor: ?i32 = null,
     prompt: ?[]const u8 = null,
 
+    line_text_offset: f32 = 10.0,
+    line_text_padding: f32 = 1.0,
+    prompt_text_offset: f32 = 10.0,
+    prompt_text_padding: f32 = 1.0,
+
     font: ?[]const u8 = null,
     font_size: f32 = 20.0,
     font_spacing: f32 = 1.0,
@@ -149,37 +154,41 @@ pub const Config: type = struct {
         //       not make sense to have a general insensitivity
         //       flag, so maybe not.
         const params = comptime clap.parseParamsComptime(
-            \\ -h, --help                  prints this help text to stdout then exits
-            \\ -l, --lines <usize>         lists items vertically, with the given number of lines
-            \\ -w, --width <usize>         total width of the menu, inclusive of prompt if present
-            \\                             (overrides -b, -t flag width)
-            \\ -x, --pos_x <usize>         screen x position (top left of menu), overrides -a flag
-            \\                             x alignment
-            \\ -y, --pos_y <usize>         screen y position (top left of menu), overrides -a flag
-            \\                             y alignment
-            \\ -a, --alignment <alignment> comma separated pair of positions for x (t = top, c = centre,
-            \\                             b = bottom) and then y (r = right, c = centre, b = bottom)
-            \\                             alignment. These are overridden by -w, -x, -y flags.
-            \\                             Without the -w flag, this will use the whole screen width,
-            \\                             making the h component redundant. With the -w flag, both
-            \\                             the x and y components function as general alignment.
-            \\ -m, --monitor <usize>       monitor to render to, leave unset to choose monitor that
-            \\                             holds current focus
-            \\ -p, --prompt <str>          defines the prompt to be displayed to the left of the input
-            \\                             field, omitting this allows the input field and lines to
-            \\                             extend fully to the left
-            \\ -f, --font <str>            font to use, must be in a fontconfig discoverable location
-            \\     --font_size <f32>       size of the font, defaults to 20.0
-            \\     --font_spacing <f32>    spacing between characters of the font, defaults to 1.0
-            \\     --normal_bg <colour>    normal background colour, name or hex string (#RRGGBBAA)
-            \\     --normal_fg <colour>    normal foreground colour, name or hex string (#RRGGBBAA)
-            \\     --selected_bg <colour>  selected background colour, name or hex string (#RRGGBBAA)
-            \\     --selected_fg <colour>  selected foreground colour, name or hex string (#RRGGBBAA)
-            \\     --prompt_bg <colour>    prompt background colour, name or hex string (#RRGGBBAA)
-            \\     --prompt_fg <colour>    prompt foreground colour, name or hex string (#RRGGBBAA)
-            \\     --filter <filter>       type of filter to use when filtering lines based on user
-            \\                             input, Must be one of: "conatins", "starts_with"
-            \\ -v, --version               prints version information to stdout then exits
+            \\ -h, --help                      prints this help text to stdout then exits
+            \\ -l, --lines <usize>             lists items vertically, with the given number of lines
+            \\ -w, --width <usize>             total width of the menu, inclusive of prompt if present
+            \\                                 (overrides -b, -t flag width)
+            \\ -x, --pos_x <usize>             screen x position (top left of menu), overrides -a flag
+            \\                                 x alignment
+            \\ -y, --pos_y <usize>             screen y position (top left of menu), overrides -a flag
+            \\                                 y alignment
+            \\ -a, --alignment <alignment>     comma separated pair of positions for x (t = top, c = centre,
+            \\                                 b = bottom) and then y (r = right, c = centre, b = bottom)
+            \\                                 alignment. These are overridden by -w, -x, -y flags.
+            \\                                 Without the -w flag, this will use the whole screen width,
+            \\                                 making the h component redundant. With the -w flag, both
+            \\                                 the x and y components function as general alignment.
+            \\ -m, --monitor <usize>           monitor to render to, leave unset to choose monitor that
+            \\                                 holds current focus
+            \\ -p, --prompt <str>              defines the prompt to be displayed to the left of the input
+            \\                                 field, omitting this allows the input field and lines to
+            \\                                 extend fully to the left
+            \\ -f, --font <str>                font to use, must be in a fontconfig discoverable location
+            \\     --font_size <f32>           size of the font, defaults to 20.0
+            \\     --font_spacing <f32>        spacing between characters of the font, defaults to 1.0
+            \\     --normal_bg <colour>        normal background colour, name or hex string (#RRGGBBAA)
+            \\     --normal_fg <colour>        normal foreground colour, name or hex string (#RRGGBBAA)
+            \\     --selected_bg <colour>      selected background colour, name or hex string (#RRGGBBAA)
+            \\     --selected_fg <colour>      selected foreground colour, name or hex string (#RRGGBBAA)
+            \\     --prompt_bg <colour>        prompt background colour, name or hex string (#RRGGBBAA)
+            \\     --prompt_fg <colour>        prompt foreground colour, name or hex string (#RRGGBBAA)
+            \\     --filter <filter>           type of filter to use when filtering lines based on user
+            \\                                 input, Must be one of: "conatins", "starts_with"
+            \\     --prompt_text_offset <f32>  offset from the left side of the prompt text background
+            \\     --prompt_text_padding <f32> offset from top and bottom of the prompt text background
+            \\     --line_text_offset <f32>    offset from the left side of the line text background
+            \\     --line_text_padding <f32>   offset from top and bottom of the line text background
+            \\ -v, --version                   prints version information to stdout then exits
         );
         var diag = clap.Diagnostic{};
         var res = clap.parse(
@@ -266,6 +275,18 @@ pub const Config: type = struct {
         }
         if (res.args.prompt_fg) |prompt_fg| {
             config.prompt_fg = prompt_fg;
+        }
+        if (res.args.prompt_text_offset) |prompt_text_offset| {
+            config.prompt_text_offset = prompt_text_offset;
+        }
+        if (res.args.prompt_text_padding) |prompt_text_padding| {
+            config.prompt_text_padding = prompt_text_padding;
+        }
+        if (res.args.line_text_offset) |line_text_offset| {
+            config.line_text_offset = line_text_offset;
+        }
+        if (res.args.line_text_padding) |line_text_padding| {
+            config.line_text_padding = line_text_padding;
         }
         if (res.args.filter) |filter| {
             config.filter = filter;
