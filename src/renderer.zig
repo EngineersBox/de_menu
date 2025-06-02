@@ -24,8 +24,15 @@ const KEY_HELD_DEBOUNCE_RATE_MS: comptime_float = 0.1;
 
 const FontExtensions: type = enum {
     // NOTE: Don't capitalise these, they get converted to a string
+
+    // TrueType/OpenType
     ttf,
     otf,
+    // BMFonts
+    fnt,
+    // XNA Sprites
+    png,
+    bmp,
 
     pub fn matchName(
         allocator: std.mem.Allocator,
