@@ -55,6 +55,8 @@ fn run(
         else
             line;
         defer trimmed_line.deinit();
+        // NOTE: Pre-convert to a CString to avoid needing to do it
+        //       repeatedly during the render loop
         try input.lines.append(try std.fmt.allocPrintZ(
             allocator,
             "{s}",
