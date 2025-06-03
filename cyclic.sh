@@ -1,5 +1,18 @@
 #!/usr/bin/env bash
 
+set -o errexit -o pipefail -o noclobber -o nounset
+
+PWD="$(pwd)"
+PROJECT_DIR_NAME="de_menu"
+
+case "$(basename "$PWD")" in
+  "$PROJECT_DIR_NAME") ;;
+  *)
+    echo "[ERROR] This script must be run from the $PROJECT_DIR_NAME directory, not $PWD"
+    exit 1
+    ;;
+esac
+
 zig build
 
 PIPE=/tmp/__de_menu_cyclic_pipe
@@ -19,3 +32,8 @@ mkfifo $PIPE
            --set="uni off" \
            --set="uniexp 0" \
            --set="vspace off" 1>$PIPE
+# FIXME: Figure out why piping the result of qalc
+#        via grep -vE "^>" strips all output, but
+#        when done as a standalone script it works
+#        just fine:
+#        echo "1 + 2" | qalc -c=0 -s="vspace off" | grep -vE "^>"
