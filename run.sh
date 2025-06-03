@@ -14,7 +14,7 @@ case "$(basename "$PWD")" in
 esac
 
 zig build
-echo "Selected: $(ls -t1 | zig-out/bin/de_menu -l 5 \
+echo "Selected: $(ls -t1 | zig-out/bin/de_menu -l 5 --lines_reverse \
                                                -p Test \
                                                -f Monocraft \
                                                --filter contains_insensitive \

@@ -22,6 +22,8 @@ const KEY_PRESS_DEBOUNCE_RATE_MS: comptime_float = 0.1;
 const KEY_INITIAL_HELD_DEBOUNCE_RATE_MS: comptime_float = 0.3;
 const KEY_HELD_DEBOUNCE_RATE_MS: comptime_float = 0.1;
 
+const DELIMITER: comptime_int = if (builtin.target.os.tag == .windows) '\r' else '\n';
+
 const FontExtensions: type = enum {
     // NOTE: Don't capitalise these, they get converted to a string
 
@@ -92,11 +94,23 @@ fn heldDebounce(key: raylib.KeyboardKey) bool {
     return false;
 }
 
+const Progression: type = enum {
+    // If the buffer has data, write it to
+    // stdout, then exit
+    WRITE_EXIT,
+    // Write the buffer to stdout,
+    // clear the buffer then continue
+    // to execute normally
+    WRITE_CONTINUE,
+    // Continue execution
+    CONTINUE,
+};
+
 // TODO: Support the same key bindings as dmenu
 fn handleKeypress(
     config: *const Config,
     input: *InputData,
-) anyerror!bool {
+) anyerror!Progression {
     var unicode_char: i32 = raylib.getCharPressed();
     var updated_buffer: bool = unicode_char > 0;
     while (unicode_char > 0) {
@@ -106,11 +120,17 @@ fn handleKeypress(
         }
         unicode_char = raylib.getCharPressed();
     }
-    var enter_pressed: bool = false;
+    var progression: Progression = .CONTINUE;
     if (heldDebounce(raylib.KeyboardKey.down)) {
-        input.shiftCursorLine(1, config.lines);
+        input.shiftCursorLine(
+            if (config.lines_reverse) -1 else 1,
+            config.lines,
+        );
     } else if (heldDebounce(raylib.KeyboardKey.up)) {
-        input.shiftCursorLine(-1, config.lines);
+        input.shiftCursorLine(
+            if (config.lines_reverse) 1 else -1,
+            config.lines,
+        );
     } else if (heldDebounce(raylib.KeyboardKey.left)) {
         input.shiftBufferCol(-1);
     } else if (heldDebounce(raylib.KeyboardKey.right)) {
@@ -119,11 +139,11 @@ fn handleKeypress(
         try input.selectCursorLine();
         updated_buffer = true;
     } else if (raylib.isKeyPressed(raylib.KeyboardKey.enter) and debounce(KEY_PRESS_DEBOUNCE_RATE_MS)) {
-        enter_pressed = true;
+        progression = if (config.cyclic) .WRITE_CONTINUE else .WRITE_EXIT;
     } else if (raylib.isKeyPressed(raylib.KeyboardKey.escape) and debounce(KEY_PRESS_DEBOUNCE_RATE_MS)) {
         input.buffer.clearAndFree();
         input.buffer_col = 0;
-        enter_pressed = true;
+        progression = .WRITE_EXIT;
     } else if (heldDebounce(raylib.KeyboardKey.backspace)) {
         if (input.buffer.items.len > 0) {
             _ = input.buffer.orderedRemove(input.buffer_col -| 1);
@@ -131,10 +151,10 @@ fn handleKeypress(
         input.shiftBufferCol(-1);
         updated_buffer = true;
     }
-    if (updated_buffer) {
-        try input.filterLines(config.filter);
+    if (config.filter != null and updated_buffer) {
+        try input.filterLines(config);
     }
-    return enter_pressed;
+    return progression;
 }
 
 fn renderHorizontal(
@@ -302,14 +322,16 @@ fn renderVertical(
     // Lines
     const line_height: i32 = @intFromFloat(font_height + config.line_text_padding);
     var y_pos: i32 = line_height;
-    if (input.buffer.items.len == 0) {
-        // No filtering
+    const y_shift: i32 = if (config.lines_reverse) -line_height else line_height;
+    if (config.filter == null or input.buffer.items.len == 0) {
         const end = @min(
             input.rendered_lines_start + config.lines,
             input.lines.count(),
         );
+        if (config.lines_reverse) {
+            y_pos = line_height * @as(i32, @intCast(end - input.rendered_lines_start));
+        }
         for (input.rendered_lines_start..end) |i| {
-            // for (0..@min(args.lines, input.lines.count())) |i| {
             try renderVerticalLine(
                 config,
                 input,
@@ -320,7 +342,7 @@ fn renderVertical(
                 line_height,
                 prompt_offset,
             );
-            y_pos += line_height;
+            y_pos += y_shift;
         }
     } else {
         // Filtered
@@ -328,8 +350,10 @@ fn renderVertical(
             input.rendered_lines_start + config.lines,
             input.filtered_line_indices.items.len,
         );
+        if (config.lines_reverse) {
+            y_pos = line_height * @as(i32, @intCast(end - input.rendered_lines_start));
+        }
         for (input.rendered_lines_start..end) |i| {
-            // for (0..@min(args.lines, input.filtered_line_indices.items.len)) |i| {
             try renderVerticalLine(
                 config,
                 input,
@@ -340,7 +364,7 @@ fn renderVertical(
                 line_height,
                 prompt_offset,
             );
-            y_pos += line_height;
+            y_pos += y_shift;
         }
     }
 }
@@ -451,6 +475,18 @@ inline fn inferWindowPosition(config: *Config, line_height: i32) void {
     alignPosY(config, line_height);
 }
 
+fn writeBufferToStdout(input: *const InputData) anyerror!void {
+    if (input.buffer.items.len == 0) {
+        // Nothing was selected, nothing to write out
+        return;
+    }
+    var stdout: std.fs.File = std.io.getStdOut();
+    const buffer: [:0]const u8 = raylib.loadUTF8(input.buffer.items);
+    std.debug.print("Stdout: {s}\n", .{buffer});
+    try stdout.writeAll(buffer);
+    _ = try stdout.write(&[_]u8{DELIMITER});
+}
+
 pub fn render(
     allocator: std.mem.Allocator,
     input: *InputData,
@@ -496,8 +532,14 @@ pub fn render(
         raylib.beginDrawing();
         defer raylib.endDrawing();
         raylib.clearBackground(raylib.Color.blank);
-        if (try handleKeypress(config, input)) {
-            break;
+        switch (try handleKeypress(config, input)) {
+            .WRITE_EXIT => break,
+            .WRITE_CONTINUE => {
+                try writeBufferToStdout(input);
+                input.buffer.clearAndFree();
+                input.buffer_col = 0;
+            },
+            .CONTINUE => {},
         }
         try renderVertical(
             config,
@@ -506,4 +548,5 @@ pub fn render(
             input,
         );
     }
+    try writeBufferToStdout(input);
 }

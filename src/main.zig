@@ -23,6 +23,7 @@ fn run(
     allocator: std.mem.Allocator,
     stdin: std.fs.File,
     input: *InputData,
+    config: *const Config,
     should_terminate: *volatile bool,
 ) anyerror!void {
     var reader = stdin.reader();
@@ -63,25 +64,15 @@ fn run(
         if (trimmed_line.items.len == 0) {
             continue;
         }
+        std.debug.print("Stdin: {s}\n", .{trimmed_line.items});
         // NOTE: Pre-convert to a CString to avoid needing to do it
         //       repeatedly during the render loop
-        try input.lines.append(try std.fmt.allocPrintZ(
+        try input.appendLine(try std.fmt.allocPrintZ(
             allocator,
             "{s}",
             .{trimmed_line.items},
-        ));
+        ), config);
     }
-}
-
-fn writeBufferToStdout(input: *const InputData) anyerror!void {
-    if (input.buffer.items.len == 0) {
-        // Nothing was selected, nothing to write out
-        std.process.exit(1);
-    }
-    var stdout: std.fs.File = std.io.getStdOut();
-    const buffer: [:0]const u8 = raylib.loadUTF8(input.buffer.items);
-    try stdout.writeAll(buffer);
-    stdout.close();
 }
 
 pub fn main() anyerror!void {
@@ -107,10 +98,9 @@ pub fn main() anyerror!void {
     run_thread = try std.Thread.spawn(
         .{ .allocator = allocator },
         run,
-        .{ allocator, std.io.getStdIn(), &input, &should_terminate },
+        .{ allocator, std.io.getStdIn(), &input, &config, &should_terminate },
     );
     run_thread.detach();
     try render(allocator, &input, &config);
-    try writeBufferToStdout(&input);
     std.process.cleanExit();
 }

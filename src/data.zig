@@ -3,9 +3,10 @@ const raylib = @import("raylib");
 const raygui = @import("raygui");
 const ZgLetterCasing = @import("zg_letter_casing");
 
+const Config = @import("config.zig").Config;
 const ConcurrentArrayList = @import("containers/concurrent_array_list.zig").ConcurrentArrayList;
 const CString = @import("filter.zig").CString;
-const UnicodeString= @import("filter.zig").UnicodeString;
+const UnicodeString = @import("filter.zig").UnicodeString;
 const Filter = @import("filter.zig").Filter;
 
 pub const InputData: type = struct {
@@ -95,12 +96,16 @@ pub const InputData: type = struct {
         ));
     }
 
-    pub fn filterLines(self: *@This(), filter: Filter) !void {
+    pub fn filterLines(self: *@This(), config: *const Config) !void {
+        const filter: Filter = config.filter orelse {
+            self.shiftCursorLine(0, 1);
+            return;
+        };
         // Lines are filtered only when there is text in the buffer
         if (self.buffer.items.len == 0) {
             // Using size of 1 here just ensures
             // we set the default rendered_lines_start
-            self.shiftCursorLine(0, 1);
+            self.resetCursorLine(config);
             return;
         }
         self.cursor_line = 0;
@@ -109,15 +114,32 @@ pub const InputData: type = struct {
         self.lines.rwlock.lockShared();
         defer self.lines.rwlock.unlockShared();
         for (self.lines.array_list.items, 0..) |line, i| {
-            if (filter(
-                self.allocator,
-                &self.zg_letter_casing,
-                &self.buffer,
-                line
-            )) {
+            if (filter(self.allocator, &self.zg_letter_casing, &self.buffer, line)) {
                 try self.filtered_line_indices.append(i);
             }
         }
-        self.shiftCursorLine(0, 1);
+        self.resetCursorLine(config);
+    }
+
+    pub fn appendLine(
+        self: *@This(),
+        line: CString,
+        config: *const Config,
+    ) !void {
+        try self.lines.append(line);
+        if (config.lines_reverse) {
+            self.cursor_line = self.lines.count() -| 1;
+            self.rendered_lines_start = self.lines.count() -| config.lines;
+        }
+    }
+
+    fn resetCursorLine(self: *@This(), config: *const Config) void {
+        if (config.lines_reverse) {
+            self.cursor_line = self.lines.count() -| 1;
+            self.rendered_lines_start = 0;
+        } else {
+            self.cursor_line = 0;
+            self.rendered_lines_start = 0;
+        }
     }
 };

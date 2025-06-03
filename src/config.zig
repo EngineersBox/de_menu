@@ -50,7 +50,10 @@ fn colourParser(in: []const u8) std.fmt.ParseIntError!raylib.Color {
     return raylib.getColor(hex);
 }
 
-fn filterParser(in: []const u8) error{InvalidFilter}!Filter {
+fn filterParser(in: []const u8) error{InvalidFilter}!?Filter {
+    if (std.mem.eql(u8, in, "none")) {
+        return null;
+    }
     return FILTERS.get(in) orelse error.InvalidFilter;
 }
 
@@ -121,6 +124,7 @@ pub const Config: type = struct {
     allocator: std.mem.Allocator,
 
     lines: usize = 20,
+    lines_reverse: bool = false,
 
     width: ?i32 = null,
     pos_x: ?i32 = null,
@@ -146,7 +150,10 @@ pub const Config: type = struct {
     prompt_bg: raylib.Color = raylib.Color.dark_blue,
     prompt_fg: raylib.Color = raylib.Color.ray_white,
 
-    filter: Filter = Filters.contains,
+    filter: ?Filter = Filters.contains,
+
+    cyclic: bool = false,
+    no_line_select: bool = false,
 
     pub fn initFromStdin(allocator: std.mem.Allocator) anyerror!?@This() {
         // NOTE: Should we support case-insensitivity by -i flag,
@@ -156,6 +163,7 @@ pub const Config: type = struct {
         const params = comptime clap.parseParamsComptime(
             \\ -h, --help                      prints this help text to stdout then exits
             \\ -l, --lines <usize>             lists items vertically, with the given number of lines
+            \\     --lines_reverse             render the lines in reverse order
             \\ -w, --width <usize>             total width of the menu, inclusive of prompt if present
             \\                                 (overrides -b, -t flag width)
             \\ -x, --pos_x <usize>             screen x position (top left of menu), overrides -a flag
@@ -184,11 +192,20 @@ pub const Config: type = struct {
             \\     --prompt_fg <colour>        prompt foreground colour, name or hex string (#RRGGBBAA)
             \\     --filter <filter>           type of filter to use when filtering lines based on user
             \\                                 input, Must be one of "contains", "starts_with",
-            \\                                 "contains_insensitive" or "starts_with_insensitive"
+            \\                                 "contains_insensitive", "starts_with_insensitive" or "none"
             \\     --prompt_text_offset <f32>  offset from the left side of the prompt text background
             \\     --prompt_text_padding <f32> offset from top and bottom of the prompt text background
             \\     --line_text_offset <f32>    offset from the left side of the line text background
             \\     --line_text_padding <f32>   offset from top and bottom of the line text background
+            \\ -c, --cyclic                    when the user presses enter on the buffer, it's contents
+            \\                                 are written to stdout, the buffer is cleared and control
+            \\                                 returns to the user, acting as a buffer cycle. This allows
+            \\                                 the output of de_menu to be used elsewhere and then some
+            \\                                 transformation of it to be piped back into stdin.
+            \\                                 If escape is pressed, de_menu exits without printing to
+            \\                                 stdout
+            \\     --no_line_select            disable the ability to fill the input buffer from a selected
+            \\                                 line
             \\ -v, --version                   prints version information to stdout then exits
         );
         var diag = clap.Diagnostic{};
@@ -225,6 +242,7 @@ pub const Config: type = struct {
             .allocator = allocator,
         };
         if (res.args.lines) |lines| config.lines = lines;
+        if (res.args.lines_reverse != 0) config.lines_reverse = true;
         if (res.args.width) |width| config.width = @intCast(width);
         if (res.args.pos_x) |pos_x| config.pos_x = @intCast(pos_x);
         if (res.args.pos_y) |pos_y| config.pos_y = @intCast(pos_y);
@@ -253,6 +271,8 @@ pub const Config: type = struct {
         if (res.args.line_text_offset) |line_text_offset| config.line_text_offset = line_text_offset;
         if (res.args.line_text_padding) |line_text_padding| config.line_text_padding = line_text_padding;
         if (res.args.filter) |filter| config.filter = filter;
+        if (res.args.cyclic != 0) config.cyclic = true;
+        if (res.args.no_line_select != 0) config.no_line_select = true;
         return config;
     }
 
