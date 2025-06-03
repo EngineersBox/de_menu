@@ -183,7 +183,8 @@ pub const Config: type = struct {
             \\     --prompt_bg <colour>        prompt background colour, name or hex string (#RRGGBBAA)
             \\     --prompt_fg <colour>        prompt foreground colour, name or hex string (#RRGGBBAA)
             \\     --filter <filter>           type of filter to use when filtering lines based on user
-            \\                                 input, Must be one of: "conatins", "starts_with"
+            \\                                 input, Must be one of "contains", "starts_with",
+            \\                                 "contains_insensitive" or "starts_with_insensitive"
             \\     --prompt_text_offset <f32>  offset from the left side of the prompt text background
             \\     --prompt_text_padding <f32> offset from top and bottom of the prompt text background
             \\     --line_text_offset <f32>    offset from the left side of the line text background
