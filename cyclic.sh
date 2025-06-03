@@ -18,5 +18,4 @@ mkfifo $PIPE
            --set="divsign 0" \
            --set="uni off" \
            --set="uniexp 0" \
-           --set="vspace off" \
-    1>$PIPE
+           --set="vspace off" 1>$PIPE

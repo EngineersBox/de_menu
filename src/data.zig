@@ -98,7 +98,7 @@ pub const InputData: type = struct {
 
     pub fn filterLines(self: *@This(), config: *const Config) !void {
         const filter: Filter = config.filter orelse {
-            self.shiftCursorLine(0, 1);
+            // self.shiftCursorLine(0, 1);
             return;
         };
         // Lines are filtered only when there is text in the buffer

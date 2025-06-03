@@ -135,7 +135,7 @@ fn handleKeypress(
         input.shiftBufferCol(-1);
     } else if (heldDebounce(raylib.KeyboardKey.right)) {
         input.shiftBufferCol(1);
-    } else if (raylib.isKeyPressed(raylib.KeyboardKey.tab) and debounce(KEY_PRESS_DEBOUNCE_RATE_MS)) {
+    } else if (!config.no_line_select and raylib.isKeyPressed(raylib.KeyboardKey.tab) and debounce(KEY_PRESS_DEBOUNCE_RATE_MS)) {
         try input.selectCursorLine();
         updated_buffer = true;
     } else if (raylib.isKeyPressed(raylib.KeyboardKey.enter) and debounce(KEY_PRESS_DEBOUNCE_RATE_MS)) {
@@ -324,6 +324,7 @@ fn renderVertical(
     var y_pos: i32 = line_height;
     const y_shift: i32 = if (config.lines_reverse) -line_height else line_height;
     if (config.filter == null or input.buffer.items.len == 0) {
+        // Not Filtered
         const end = @min(
             input.rendered_lines_start + config.lines,
             input.lines.count(),
@@ -331,6 +332,8 @@ fn renderVertical(
         if (config.lines_reverse) {
             y_pos = line_height * @as(i32, @intCast(end - input.rendered_lines_start));
         }
+        // FIXME: No filtering taking place, but lines are not being
+        //        rendered, despite logging in this loop saying it is
         for (input.rendered_lines_start..end) |i| {
             try renderVerticalLine(
                 config,
