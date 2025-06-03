@@ -224,12 +224,12 @@ pub const Config: type = struct {
         var config: @This() = .{
             .allocator = allocator,
         };
-        config.storeIfPresent("lines", res);
-        config.storeIfPresent("width", res);
-        config.storeIfPresent("pos_x", res);
-        config.storeIfPresent("pos_y", res);
-        config.storeIfPresent("alignment", res);
-        config.storeIfPresent("monitor", res);
+        if (res.args.lines) |lines| config.lines = lines;
+        if (res.args.width) |width| config.width = @intCast(width);
+        if (res.args.pos_x) |pos_x| config.pos_x = @intCast(pos_x);
+        if (res.args.pos_y) |pos_y| config.pos_y = @intCast(pos_y);
+        if (res.args.alignment) |alignment| config.alignment = alignment;
+        if (res.args.monitor) |monitor| config.monitor = @intCast(monitor);
         if (res.args.prompt) |prompt| {
             config.prompt = try std.fmt.allocPrintZ(
                 allocator,
@@ -240,44 +240,20 @@ pub const Config: type = struct {
         if (res.args.font) |font| {
             config.font = try allocator.dupe(u8, font);
         }
-        config.storeIfPresent("font_size", res);
-        config.storeIfPresent("font_spacing", res);
-        config.storeIfPresent("normal_bg", res);
-        config.storeIfPresent("normal_fg", res);
-        config.storeIfPresent("selected_bg", res);
-        config.storeIfPresent("selected_fg", res);
-        config.storeIfPresent("prompt_bg", res);
-        config.storeIfPresent("prompt_fg", res);
-        config.storeIfPresent("prompt_text_offset", res);
-        config.storeIfPresent("prompt_text_padding", res);
-        config.storeIfPresent("line_text_offset", res);
-        config.storeIfPresent("line_text_padding", res);
-        config.storeIfPresent("filter", res);
+        if (res.args.font_size) |font_size| config.font_size = font_size;
+        if (res.args.font_spacing) |font_spacing| config.font_spacing = font_spacing;
+        if (res.args.normal_bg) |normal_bg| config.normal_bg = normal_bg;
+        if (res.args.normal_fg) |normal_fg| config.normal_fg = normal_fg;
+        if (res.args.selected_bg) |selected_bg| config.selected_bg = selected_bg;
+        if (res.args.selected_fg) |selected_fg| config.selected_fg = selected_fg;
+        if (res.args.prompt_bg) |prompt_bg| config.prompt_bg = prompt_bg;
+        if (res.args.prompt_fg) |prompt_fg| config.prompt_fg = prompt_fg;
+        if (res.args.prompt_text_offset) |prompt_text_offset| config.prompt_text_offset = prompt_text_offset;
+        if (res.args.prompt_text_padding) |prompt_text_padding| config.prompt_text_padding = prompt_text_padding;
+        if (res.args.line_text_offset) |line_text_offset| config.line_text_offset = line_text_offset;
+        if (res.args.line_text_padding) |line_text_padding| config.line_text_padding = line_text_padding;
+        if (res.args.filter) |filter| config.filter = filter;
         return config;
-    }
-
-    // Stores a CLI argument with a given "name"
-    // into the matching config field with the
-    // same name, performing basic type transformation
-    // if necessary and concrete.
-    fn storeIfPresent(
-        self: *@This(),
-        comptime name: []const u8,
-        res: anytype,
-    ) void {
-        if (@field(res.args, name)) |field_value| {
-            const field_type_opt = @typeInfo(@FieldType(@TypeOf(self.*), name));
-            const field_type = if (field_type_opt == .optional)
-                @typeInfo(field_type_opt.optional.child)
-            else field_type_opt;
-            const value_type = @typeInfo(@TypeOf(field_value));
-            @field(self.*, name) = if (field_type == .int and value_type == .int)
-                @intCast(field_value)
-            else if (field_type == .float and value_type == .float)
-                @floatCast(field_value)
-            else
-                field_value;
-        }
     }
 
     pub fn deinit(self: *@This()) void {
