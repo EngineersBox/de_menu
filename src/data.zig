@@ -1,48 +1,16 @@
 const std = @import("std");
 const raylib = @import("raylib");
 const raygui = @import("raygui");
+const ZgLetterCasing = @import("zg_letter_casing");
 
 const ConcurrentArrayList = @import("containers/concurrent_array_list.zig").ConcurrentArrayList;
-pub const CString = [:0]const u8;
-const UnicodeString = std.ArrayList(i32);
-
-pub const Filter: type = *const fn (buffer: *const UnicodeString, line: CString) bool;
-
-pub const Filters: type = struct {
-    pub fn contains(buffer: *const UnicodeString, line: CString) bool {
-        const line_unicode: []i32 = raylib.loadCodepoints(line) catch return false;
-        defer raylib.unloadCodepoints(line_unicode);
-        return std.mem.containsAtLeast(
-            i32,
-            line_unicode[0..line.len],
-            1,
-            buffer.items,
-        );
-    }
-    pub fn startsWith(buffer: *const UnicodeString, line: CString) bool {
-        const line_unicode: []i32 = raylib.loadCodepoints(line) catch return false;
-        defer raylib.unloadCodepoints(line_unicode);
-        return std.mem.startsWith(
-            i32,
-            line_unicode[0..line.len],
-            buffer.items,
-        );
-    }
-};
-
-pub const FILTERS: std.StaticStringMap(Filter) = std.StaticStringMap(Filter).initComptime(.{
-    .{
-        "contains",
-        Filters.contains,
-    },
-    .{
-        "starts_with",
-        Filters.startsWith,
-    },
-});
+const CString = @import("filter.zig").CString;
+const UnicodeString= @import("filter.zig").UnicodeString;
+const Filter = @import("filter.zig").Filter;
 
 pub const InputData: type = struct {
     allocator: std.mem.Allocator,
+    zg_letter_casing: ZgLetterCasing,
     lines: ConcurrentArrayList(CString),
     rendered_lines_start: usize,
     filtered_line_indices: std.ArrayList(usize),
@@ -50,9 +18,10 @@ pub const InputData: type = struct {
     buffer_col: usize,
     buffer: UnicodeString,
 
-    pub fn new(allocator: std.mem.Allocator) @This() {
+    pub fn new(allocator: std.mem.Allocator) !@This() {
         return @This(){
             .allocator = allocator,
+            .zg_letter_casing = try ZgLetterCasing.init(allocator),
             .lines = ConcurrentArrayList(CString).init(allocator),
             .rendered_lines_start = 0,
             .filtered_line_indices = std.ArrayList(usize).init(allocator),
@@ -71,6 +40,7 @@ pub const InputData: type = struct {
         self.lines.deinit();
         self.filtered_line_indices.deinit();
         self.buffer.deinit();
+        self.zg_letter_casing.deinit(self.allocator);
     }
 
     pub fn selectCursorLine(self: *@This()) anyerror!void {
@@ -139,7 +109,12 @@ pub const InputData: type = struct {
         self.lines.rwlock.lockShared();
         defer self.lines.rwlock.unlockShared();
         for (self.lines.array_list.items, 0..) |line, i| {
-            if (filter(&self.buffer, line)) {
+            if (filter(
+                self.allocator,
+                &self.zg_letter_casing,
+                &self.buffer,
+                line
+            )) {
                 try self.filtered_line_indices.append(i);
             }
         }

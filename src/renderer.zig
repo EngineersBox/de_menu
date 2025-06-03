@@ -11,8 +11,8 @@ const AlignmentX = @import("config.zig").AlignmentX;
 const AlignmentY = @import("config.zig").AlignmentY;
 const ConcurrentArrayList = @import("containers/concurrent_array_list.zig").ConcurrentArrayList;
 const InputData = @import("data.zig").InputData;
-const CString = @import("data.zig").CString;
-const Filter = @import("data.zig").Filter;
+const CString = @import("filter.zig").CString;
+const Filter = @import("filter.zig").Filter;
 
 // Defaults
 const WINDOW_WIDTH: comptime_int = 800;

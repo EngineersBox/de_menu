@@ -24,6 +24,10 @@ const build_zon: struct {
             url: []const u8,
             hash: []const u8,
         },
+        zg: struct {
+            url: []const u8,
+            hash: []const u8,
+        },
     },
     paths: []const []const u8,
 } = @import("build.zig.zon");
@@ -73,6 +77,10 @@ pub fn build(b: *std.Build) void {
             .@"enable-libxml2" = false,
         },
     );
+    const zg = b.dependency("zg", .{
+        .target = target,
+        .optimize = optimize,
+    });
     // const build_zon = b.createModule(.{
     //     .root_source_file = b.path("build.zig.zon"),
     //     .target = target,
@@ -90,7 +98,8 @@ pub fn build(b: *std.Build) void {
         // build_zon,
         raylib,
         clap,
-        fontconfig
+        fontconfig,
+        zg,
     );
     host_exe.step.dependOn(writeMetaFileStep(b));
     b.installArtifact(host_exe);
@@ -108,7 +117,8 @@ pub fn build(b: *std.Build) void {
     //         // build_zon,
     //         raylib,
     //         clap,
-    //         fontconfig
+    //         fontconfig,
+    //         zg,
     //     );
     //     b.installArtifact(exe);
     // }
@@ -158,6 +168,7 @@ fn create_exe(
     raylib: *std.Build.Dependency,
     clap: *std.Build.Dependency,
     fontconfig: *std.Build.Dependency,
+    zg: *std.Build.Dependency,
 ) *std.Build.Step.Compile {
     const exe = b.addExecutable(.{
         .name = "de_menu",
@@ -173,5 +184,7 @@ fn create_exe(
     exe.root_module.addImport("raylib", raylib.module("raylib"));
     exe.root_module.addImport("raygui", raylib.module("raygui"));
     exe.root_module.addImport("clap", clap.module("clap"));
+    exe.root_module.addImport("zg_case_folding", zg.module("CaseFolding"));
+    exe.root_module.addImport("zg_letter_casing", zg.module("LetterCasing"));
     return exe;
 }

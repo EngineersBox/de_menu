@@ -16,6 +16,10 @@
             .url = "https://github.com/engineersbox/zig-build-fontconfig/archive/e84e6f7b0dda4747f003546867d9c88657f06848.tar.gz",
             .hash = "fontconfig-0.0.0-8x2xyjyGeADc59Te0vWc8fYEp1vIpwE21UgTTQYUL-kc",
         },
+        .zg = .{
+            .url = "https://codeberg.org/atman/zg/archive/v0.14.tar.gz",
+            .hash = "zg-0.14.0-oGqU3KEFswIffnDu8eAE2XlhzwcfgjwtM6akIc5L7cEV",
+        },
     },
     .paths = .{
         "build.zig",

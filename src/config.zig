@@ -4,9 +4,9 @@ const root = @import("root");
 const clap = @import("clap");
 const raylib = @import("raylib");
 
-const Filter = @import("data.zig").Filter;
-const Filters = @import("data.zig").Filters;
-const FILTERS = @import("data.zig").FILTERS;
+const Filter = @import("filter.zig").Filter;
+const Filters = @import("filter.zig").Filters;
+const FILTERS = @import("filter.zig").FILTERS;
 const meta = @import("meta.zig");
 
 const PATH_SEP: *const [1:0]u8 = std.fs.path.sep_str;

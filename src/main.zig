@@ -99,7 +99,7 @@ pub fn main() anyerror!void {
     // usage of deinitialised ConcurrentArrayList
     // during thread termination
     defer should_terminate = true;
-    var input: InputData = InputData.new(allocator);
+    var input: InputData = try InputData.new(allocator);
     defer input.deinit();
     var config: Config = try Config.initFromStdin(allocator) orelse return;
     defer config.deinit();

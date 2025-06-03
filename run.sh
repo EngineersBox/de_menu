@@ -17,5 +17,6 @@ zig build
 echo "Selected: $(ls -t1 | zig-out/bin/de_menu -l 5 \
                                                -p Test \
                                                -f Monocraft \
+                                               --filter contains_insensitive \
                                                -a c,c \
                                                -w 800)"
