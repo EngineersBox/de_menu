@@ -80,7 +80,8 @@ You can move the binary to wherever you want and it'll work fine.
 There are two examples, in this repo:
 
 1. `run.sh`: displays the project directory contents, allowing selection with enter to print to stdout
-2. `cyclic.sh`: sends expressions the user types to `qalc` and pipes the result back into the lines to be displayed as history
+2. `cyclic.sh`: sends expressions the user types to `qalc` and uses named pipes to send the result
+    back into the input of `de_menu` to show as history
 
 ### `run.sh`
 
