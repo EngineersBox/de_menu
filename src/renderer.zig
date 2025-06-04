@@ -448,4 +448,8 @@ pub fn render(
         );
     }
     try writeBufferToStdout(data);
+    // Because we opened the file in writeBufferToStdout
+    // it must be closed or it leaks memory used in the
+    // writer
+    std.io.getStdOut().close();
 }

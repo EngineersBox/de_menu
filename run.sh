@@ -13,7 +13,7 @@ case "$(basename "$PWD")" in
     ;;
 esac
 
-zig build
+zig build -Doptimize=Debug --release=safe
 echo "Selected: $(ls -t1 | zig-out/bin/de_menu -l 5 \
                                                -p Test \
                                                -f Monocraft \

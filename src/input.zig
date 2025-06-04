@@ -46,7 +46,7 @@ fn heldDebounce(key: raylib.KeyboardKey) bool {
     return false;
 }
 
-const Progression: type = enum {
+pub const InputState: type = enum {
     // If the buffer has data, write it to
     // stdout, then exit
     WRITE_EXIT,
@@ -62,7 +62,7 @@ const Progression: type = enum {
 pub fn handleKeypress(
     config: *const Config,
     input: *Data,
-) anyerror!Progression {
+) anyerror!InputState {
     var unicode_char: i32 = raylib.getCharPressed();
     var updated_buffer: bool = unicode_char > 0;
     while (unicode_char > 0) {
@@ -72,7 +72,7 @@ pub fn handleKeypress(
         }
         unicode_char = raylib.getCharPressed();
     }
-    var progression: Progression = .CONTINUE;
+    var progression: InputState = .CONTINUE;
     if (heldDebounce(raylib.KeyboardKey.down)) {
         input.shiftCursorLine(
             if (config.lines_reverse) -1 else 1,

@@ -13,7 +13,7 @@ case "$(basename "$PWD")" in
     ;;
 esac
 
-zig build
+zig build -Doptimize=Debug --release=safe
 
 PIPE=/tmp/__de_menu_cyclic_pipe
 

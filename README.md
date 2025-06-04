@@ -8,6 +8,57 @@ You get a menu that can be typed into to filter the list items recieved from std
 List items are traversable with the up/down arrow keys and tab to saturate the input
 with the hovered field. Pressing enter returns the selected item to stdout.
 
+### Options
+
+```
+-h, --help                      prints this help text to stdout then exits
+-l, --lines <usize>             lists items vertically, with the given number of lines
+    --lines_reverse             render the lines in reverse order
+-w, --width <usize>             total width of the menu, inclusive of prompt if present
+                                (overrides -b, -t flag width)
+-x, --pos_x <usize>             screen x position (top left of menu), overrides -a flag
+                                x alignment
+-y, --pos_y <usize>             screen y position (top left of menu), overrides -a flag
+                                y alignment
+-a, --alignment <alignment>     comma separated pair of positions for x (t = top, c = centre,
+                                b = bottom) and then y (r = right, c = centre, b = bottom)
+                                alignment. These are overridden by -w, -x, -y flags.
+                                Without the -w flag, this will use the whole screen width,
+                                making the h component redundant. With the -w flag, both
+                                the x and y components function as general alignment.
+-m, --monitor <usize>           monitor to render to, leave unset to choose monitor that
+                                holds current focus
+-p, --prompt <str>              defines the prompt to be displayed to the left of the input
+                                field, omitting this allows the input field and lines to
+                                extend fully to the left
+-f, --font <str>                font to use, must be in a fontconfig discoverable location
+    --font_size <f32>           size of the font, defaults to 20.0
+    --font_spacing <f32>        spacing between characters of the font, defaults to 1.0
+    --normal_bg <colour>        normal background colour, name or hex string (#RRGGBBAA)
+    --normal_fg <colour>        normal foreground colour, name or hex string (#RRGGBBAA)
+    --selected_bg <colour>      selected background colour, name or hex string (#RRGGBBAA)
+    --selected_fg <colour>      selected foreground colour, name or hex string (#RRGGBBAA)
+    --prompt_bg <colour>        prompt background colour, name or hex string (#RRGGBBAA)
+    --prompt_fg <colour>        prompt foreground colour, name or hex string (#RRGGBBAA)
+    --filter <filter>           type of filter to use when filtering lines based on user
+                                input, Must be one of "contains", "starts_with",
+                                "contains_insensitive", "starts_with_insensitive" or "none"
+    --prompt_text_offset <f32>  offset from the left side of the prompt text background
+    --prompt_text_padding <f32> offset from top and bottom of the prompt text background
+    --line_text_offset <f32>    offset from the left side of the line text background
+    --line_text_padding <f32>   offset from top and bottom of the line text background
+-c, --cyclic                    when the user presses enter on the buffer, it's contents
+                                are written to stdout, the buffer is cleared and control
+                                returns to the user, acting as a buffer cycle. This allows
+                                the output of de_menu to be used elsewhere and then some
+                                transformation of it to be piped back into stdin.
+                                If escape is pressed, de_menu exits without printing to
+                                stdout
+    --no_line_select            disable the ability to fill the input buffer from a selected
+                                line
+-v, --version                   prints version information to stdout then exits
+```
+
 ### Example
 
 Using a simple script:
