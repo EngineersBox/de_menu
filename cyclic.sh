@@ -37,3 +37,4 @@ mkfifo $PIPE
 #       instead of per line. Using `--line-buffered` will 
 #       tell it to buffer per-line instead (i.e. ending
 #       with a \n or \r depending on platform)
+#       https://stackoverflow.com/a/49704817
