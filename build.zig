@@ -74,6 +74,8 @@ pub fn build(b: *std.Build) void {
             //        and "expat" is used instead. Update the version of libxml2
             //        in the dependent repo and all downstream deps, then
             //        update the fontconfig dependency here and remove this.
+            // NOTE: Maybe expat is a better dep than libxml2 tbh. Have to test       
+            //       cross-compiliation though.
             .@"enable-libxml2" = false,
         },
     );
