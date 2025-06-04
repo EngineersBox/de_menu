@@ -6,8 +6,8 @@ const KnownFolders = @import("known-folders");
 
 const render = @import("renderer.zig").render;
 const Config = @import("config.zig").Config;
-const InputData = @import("data.zig").InputData;
-const CString = @import("data.zig").CString;
+const Data = @import("data.zig");
+const CString = Data.CString;
 const ConcurrentArrayList = @import("containers/concurrent_array_list.zig").ConcurrentArrayList;
 
 const DELIMITER: comptime_int = if (builtin.target.os.tag == .windows) '\r' else '\n';
@@ -22,7 +22,7 @@ pub const known_folders_config: KnownFolders.KnownFolderConfig = .{
 fn run(
     allocator: std.mem.Allocator,
     stdin: std.fs.File,
-    input: *InputData,
+    input: *Data,
     config: *const Config,
     should_terminate: *volatile bool,
 ) anyerror!void {
@@ -90,7 +90,7 @@ pub fn main() anyerror!void {
     // usage of deinitialised ConcurrentArrayList
     // during thread termination
     defer should_terminate = true;
-    var input: InputData = try InputData.new(allocator);
+    var input: Data = try Data.new(allocator);
     defer input.deinit();
     var config: Config = try Config.initFromStdin(allocator) orelse return;
     defer config.deinit();

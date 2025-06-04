@@ -10,17 +10,14 @@ const Alignment = @import("config.zig").Alignment;
 const AlignmentX = @import("config.zig").AlignmentX;
 const AlignmentY = @import("config.zig").AlignmentY;
 const ConcurrentArrayList = @import("containers/concurrent_array_list.zig").ConcurrentArrayList;
-const InputData = @import("data.zig").InputData;
+const Data = @import("data.zig");
 const CString = @import("filter.zig").CString;
 const Filter = @import("filter.zig").Filter;
+const input = @import("input.zig");
 
 // Defaults
 const WINDOW_WIDTH: comptime_int = 800;
 const WINDOW_HEIGHT: comptime_int = 600;
-
-const KEY_PRESS_DEBOUNCE_RATE_MS: comptime_float = 0.1;
-const KEY_INITIAL_HELD_DEBOUNCE_RATE_MS: comptime_float = 0.3;
-const KEY_HELD_DEBOUNCE_RATE_MS: comptime_float = 0.1;
 
 const DELIMITER: comptime_int = if (builtin.target.os.tag == .windows) '\r' else '\n';
 
@@ -56,120 +53,19 @@ const FontExtensions: type = enum {
     }
 };
 
-threadlocal var last_time: f64 = 0;
-threadlocal var last_repeat: f64 = 0;
-
-fn debounce(rate: f64) bool {
-    const time: f64 = raylib.getTime();
-    if (time - last_time >= rate) {
-        last_time = time;
-        last_repeat = time;
-        return true;
-    }
-    return false;
-}
-
-fn debounceRepeat(initial_rate: f64, repeat_rate: f64) bool {
-    const time: f64 = raylib.getTime();
-    if (time - last_time >= initial_rate and time - last_repeat >= repeat_rate) {
-        last_repeat = time;
-        return true;
-    }
-    return false;
-}
-
-/// Allows initial keypress assuming `KEY_PRESS_DEBOUNCE_RATE_MS` since
-/// last key press, then waits `KEY_INITIAL_HELD_DEBOUNCE_RATE_MS` if
-/// key is continually held, after which subsequent triggers are
-/// `KEY_HELD_DEBOUNCE_RATE_MS` apart.
-fn heldDebounce(key: raylib.KeyboardKey) bool {
-    if (raylib.isKeyPressed(key)) {
-        return debounce(KEY_PRESS_DEBOUNCE_RATE_MS);
-    } else if (raylib.isKeyDown(key)) {
-        return debounceRepeat(
-            KEY_INITIAL_HELD_DEBOUNCE_RATE_MS,
-            KEY_HELD_DEBOUNCE_RATE_MS,
-        );
-    }
-    return false;
-}
-
-const Progression: type = enum {
-    // If the buffer has data, write it to
-    // stdout, then exit
-    WRITE_EXIT,
-    // Write the buffer to stdout,
-    // clear the buffer then continue
-    // to execute normally
-    WRITE_CONTINUE,
-    // Continue execution
-    CONTINUE,
-};
-
-// TODO: Support the same key bindings as dmenu
-fn handleKeypress(
-    config: *const Config,
-    input: *InputData,
-) anyerror!Progression {
-    var unicode_char: i32 = raylib.getCharPressed();
-    var updated_buffer: bool = unicode_char > 0;
-    while (unicode_char > 0) {
-        if (unicode_char >= 32 and unicode_char <= 125) {
-            try input.buffer.insert(input.buffer_col, unicode_char);
-            input.shiftBufferCol(1);
-        }
-        unicode_char = raylib.getCharPressed();
-    }
-    var progression: Progression = .CONTINUE;
-    if (heldDebounce(raylib.KeyboardKey.down)) {
-        input.shiftCursorLine(
-            if (config.lines_reverse) -1 else 1,
-            config.lines,
-        );
-    } else if (heldDebounce(raylib.KeyboardKey.up)) {
-        input.shiftCursorLine(
-            if (config.lines_reverse) 1 else -1,
-            config.lines,
-        );
-    } else if (heldDebounce(raylib.KeyboardKey.left)) {
-        input.shiftBufferCol(-1);
-    } else if (heldDebounce(raylib.KeyboardKey.right)) {
-        input.shiftBufferCol(1);
-    } else if (!config.no_line_select and raylib.isKeyPressed(raylib.KeyboardKey.tab) and debounce(KEY_PRESS_DEBOUNCE_RATE_MS)) {
-        try input.selectCursorLine();
-        updated_buffer = true;
-    } else if (raylib.isKeyPressed(raylib.KeyboardKey.enter) and debounce(KEY_PRESS_DEBOUNCE_RATE_MS)) {
-        progression = if (config.cyclic) .WRITE_CONTINUE else .WRITE_EXIT;
-    } else if (raylib.isKeyPressed(raylib.KeyboardKey.escape) and debounce(KEY_PRESS_DEBOUNCE_RATE_MS)) {
-        input.buffer.clearAndFree();
-        input.buffer_col = 0;
-        progression = .WRITE_EXIT;
-    } else if (heldDebounce(raylib.KeyboardKey.backspace)) {
-        if (input.buffer.items.len > 0) {
-            _ = input.buffer.orderedRemove(input.buffer_col -| 1);
-        }
-        input.shiftBufferCol(-1);
-        updated_buffer = true;
-    }
-    if (config.filter != null and updated_buffer) {
-        try input.filterLines(config);
-    }
-    return progression;
-}
-
 fn renderHorizontal(
     _: std.mem.Allocator,
     _: *const Config,
     _: *const raylib.Font,
     _: f32,
-    _: *InputData,
+    _: *Data,
 ) anyerror!void {
     // TODO: Implement this
 }
 
 fn renderVerticalLine(
     config: *const Config,
-    input: *InputData,
+    data: *Data,
     font: *const raylib.Font,
     i: usize,
     line: CString,
@@ -177,11 +73,11 @@ fn renderVerticalLine(
     line_height: i32,
     prompt_offset: f32,
 ) anyerror!void {
-    const line_colour: raylib.Color = if (input.cursor_line == i)
+    const line_colour: raylib.Color = if (data.cursor_line == i)
         config.selected_bg
     else
         config.normal_bg;
-    const text_colour: raylib.Color = if (input.cursor_line == i)
+    const text_colour: raylib.Color = if (data.cursor_line == i)
         config.selected_fg
     else
         config.normal_fg;
@@ -252,7 +148,7 @@ fn renderVertical(
     config: *const Config,
     font: *const raylib.Font,
     font_height: f32,
-    input: *InputData,
+    data: *Data,
 ) anyerror!void {
     const prompt_offset: f32 = try renderPrompt(
         config,
@@ -270,7 +166,7 @@ fn renderVertical(
     );
     raylib.drawTextCodepoints(
         font.*,
-        input.buffer.items,
+        data.buffer.items,
         raylib.Vector2.init(
             config.prompt_text_offset + prompt_offset,
             config.prompt_text_padding / 2.0,
@@ -283,8 +179,8 @@ fn renderVertical(
         0,
         config.font_size,
     );
-    if (input.buffer.items.len != 0) {
-        const buffer: []const c_int = if (input.buffer_col == 0)
+    if (data.buffer.items.len != 0) {
+        const buffer: []const c_int = if (data.buffer_col == 0)
             // FIXME: Random value, just to get height of text,
             //        but in reality we want it to be at least
             //        as large as the tallest character.
@@ -292,7 +188,7 @@ fn renderVertical(
             //        monospaced fonts and be done with it.
             &[_]c_int{0x34}
         else
-            input.buffer.items[0..input.buffer_col];
+            data.buffer.items[0..data.buffer_col];
         const c_buffer: [:0]u8 = raylib.loadUTF8(buffer);
         defer raylib.unloadUTF8(c_buffer);
         buffer_col_offset = raylib.measureTextEx(
@@ -301,7 +197,7 @@ fn renderVertical(
             config.font_size,
             config.font_spacing,
         );
-        if (input.buffer_col == 0) {
+        if (data.buffer_col == 0) {
             buffer_col_offset.x = 0;
         }
     }
@@ -323,24 +219,24 @@ fn renderVertical(
     const line_height: i32 = @intFromFloat(font_height + config.line_text_padding);
     var y_pos: i32 = line_height;
     const y_shift: i32 = if (config.lines_reverse) -line_height else line_height;
-    if (config.filter == null or input.buffer.items.len == 0) {
+    if (config.filter == null or data.buffer.items.len == 0) {
         // Not Filtered
         const end = @min(
-            input.rendered_lines_start + config.lines,
-            input.lines.count(),
+            data.rendered_lines_start + config.lines,
+            data.lines.count(),
         );
         if (config.lines_reverse) {
-            y_pos = line_height * @as(i32, @intCast(end - input.rendered_lines_start));
+            y_pos = line_height * @as(i32, @intCast(end - data.rendered_lines_start));
         }
         // FIXME: No filtering taking place, but lines are not being
         //        rendered, despite logging in this loop saying it is
-        for (input.rendered_lines_start..end) |i| {
+        for (data.rendered_lines_start..end) |i| {
             try renderVerticalLine(
                 config,
-                input,
+                data,
                 font,
                 i,
-                input.lines.get(i),
+                data.lines.get(i),
                 y_pos,
                 line_height,
                 prompt_offset,
@@ -350,19 +246,19 @@ fn renderVertical(
     } else {
         // Filtered
         const end = @min(
-            input.rendered_lines_start + config.lines,
-            input.filtered_line_indices.items.len,
+            data.rendered_lines_start + config.lines,
+            data.filtered_line_indices.items.len,
         );
         if (config.lines_reverse) {
-            y_pos = line_height * @as(i32, @intCast(end - input.rendered_lines_start));
+            y_pos = line_height * @as(i32, @intCast(end - data.rendered_lines_start));
         }
-        for (input.rendered_lines_start..end) |i| {
+        for (data.rendered_lines_start..end) |i| {
             try renderVerticalLine(
                 config,
-                input,
+                data,
                 font,
                 i,
-                input.lines.get(input.filtered_line_indices.items[i]),
+                data.lines.get(data.filtered_line_indices.items[i]),
                 y_pos,
                 line_height,
                 prompt_offset,
@@ -478,13 +374,13 @@ inline fn inferWindowPosition(config: *Config, line_height: i32) void {
     alignPosY(config, line_height);
 }
 
-fn writeBufferToStdout(input: *const InputData) anyerror!void {
-    if (input.buffer.items.len == 0) {
+fn writeBufferToStdout(data: *const Data) anyerror!void {
+    if (data.buffer.items.len == 0) {
         // Nothing was selected, nothing to write out
         return;
     }
     var stdout: std.fs.File = std.io.getStdOut();
-    const buffer: [:0]const u8 = raylib.loadUTF8(input.buffer.items);
+    const buffer: [:0]const u8 = raylib.loadUTF8(data.buffer.items);
     std.debug.print("Stdout: {s}\n", .{buffer});
     try stdout.writeAll(buffer);
     _ = try stdout.write(&[_]u8{DELIMITER});
@@ -492,7 +388,7 @@ fn writeBufferToStdout(input: *const InputData) anyerror!void {
 
 pub fn render(
     allocator: std.mem.Allocator,
-    input: *InputData,
+    data: *Data,
     config: *Config,
 ) anyerror!void {
     raylib.setConfigFlags(.{
@@ -524,10 +420,10 @@ pub fn render(
         @intCast(config.pos_y.?),
     );
     while (true) {
-        const line_count: usize = if (input.buffer.items.len == 0)
-            input.lines.count()
+        const line_count: usize = if (data.buffer.items.len == 0)
+            data.lines.count()
         else
-            input.filtered_line_indices.items.len;
+            data.filtered_line_indices.items.len;
         raylib.setWindowSize(
             config.width.?,
             line_size * @as(i32, @intCast(1 + @min(line_count, config.lines))),
@@ -535,12 +431,12 @@ pub fn render(
         raylib.beginDrawing();
         defer raylib.endDrawing();
         raylib.clearBackground(raylib.Color.blank);
-        switch (try handleKeypress(config, input)) {
+        switch (try input.handleKeypress(config, data)) {
             .WRITE_EXIT => break,
             .WRITE_CONTINUE => {
-                try writeBufferToStdout(input);
-                input.buffer.clearAndFree();
-                input.buffer_col = 0;
+                try writeBufferToStdout(data);
+                data.buffer.clearAndFree();
+                data.buffer_col = 0;
             },
             .CONTINUE => {},
         }
@@ -548,8 +444,8 @@ pub fn render(
             config,
             &font,
             @floatFromInt(font.baseSize),
-            input,
+            data,
         );
     }
-    try writeBufferToStdout(input);
+    try writeBufferToStdout(data);
 }
