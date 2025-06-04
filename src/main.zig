@@ -61,7 +61,6 @@ fn run(
         if (trimmed_line.items.len == 0) {
             continue;
         }
-        std.debug.print("Stdin: \"{s}\"\n", .{trimmed_line.items});
         // NOTE: Pre-convert to a CString to avoid needing to do it
         //       repeatedly during the render loop
         try input.appendLine(try std.fmt.allocPrintZ(

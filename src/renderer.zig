@@ -381,7 +381,6 @@ fn writeBufferToStdout(data: *const Data) anyerror!void {
     }
     var stdout: std.fs.File = std.io.getStdOut();
     const buffer: [:0]const u8 = raylib.loadUTF8(data.buffer.items);
-    std.debug.print("Stdout: {s}\n", .{buffer});
     try stdout.writeAll(buffer);
     _ = try stdout.write(&[_]u8{DELIMITER});
 }
