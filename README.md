@@ -99,5 +99,3 @@ There are two examples, in this repo:
 ## Notes
 
 I might port the manual rendering to use raygui instead to support stylesheets and all that good stuff. For now, features are more important, the current UI is good enough.
-
-All the configuration for styling is emedded in the `src/renderer.zig` at the moment, at some stage it'll be configurable via CLI options and/or dotfiles. For the time being, modify those constants to change the look and feel of `de_menu`.
