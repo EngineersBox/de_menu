@@ -17,10 +17,6 @@ zig build -Doptimize=Debug --release=safe
 
 PIPE=/tmp/__de_menu_cyclic_pipe
 
-function filter() {
-    tee grep -vE "^>" | xargs printf "%s"
-}
-
 rm -f $PIPE
 mkfifo $PIPE
 ./zig-out/bin/de_menu -l 5 --lines_reverse \
