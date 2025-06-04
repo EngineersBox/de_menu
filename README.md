@@ -59,22 +59,6 @@ with the hovered field. Pressing enter returns the selected item to stdout.
 -v, --version                   prints version information to stdout then exits
 ```
 
-### Example
-
-Using a simple script:
-
-```bash
-#!/usr/bin/env bash
-
-echo "Selected: $(ls -t1 | zig-out/bin/de_menu -p Test)"
-```
-
-A menu appears, and with some typing into the input:
-
-![de_menu window](./docs/example.png)
-
-Traversing the list, and selecting the `build.zig` entry, and pressing enter then yields `Selected: build.zig` in stdout.
-
 ## Build and Run
 
 Ensure you have raylib on your system and it is discoverable. Then just normal zig build shenanigans from there:
@@ -90,6 +74,21 @@ Run it:
 ```
 
 You can move the binary to wherever you want and it'll work fine.
+
+## Examples
+
+There are two examples, in this repo:
+
+1. `run.sh`: displays the project directory contents, allowing selection with enter to print to stdout
+2. `cyclic.sh`: sends expressions the user types to `qalc` and pipes the result back into the lines to be displayed as history
+
+### `run.sh`
+
+![Listing Directory](./docs/example_listing_dir)
+
+### `cyclic.sh`
+
+![Cyclic Pipe Through Qalc](./docs/example_qalc_cyclic)
 
 ## Known Issues
 
