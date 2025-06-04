@@ -12,13 +12,13 @@
             .url = "https://github.com/Hejsil/zig-clap/archive/refs/tags/0.10.0.tar.gz",
             .hash = "clap-0.10.0-oBajB434AQBDh-Ei3YtoKIRxZacVPF1iSwp3IX_ZB8f0",
         },
-        .zg = .{
-            .url = "https://codeberg.org/atman/zg/archive/v0.14.tar.gz",
-            .hash = "zg-0.14.0-oGqU3KEFswIffnDu8eAE2XlhzwcfgjwtM6akIc5L7cEV",
-        },
         .fontconfig = .{
             .url = "https://github.com/engineersbox/zig-build-fontconfig/archive/4165d5e0f0b536b80d119a788a1117dd4d9c35f8.tar.gz",
             .hash = "fontconfig-0.0.0-8x2xyj2GeABUk5LojLPcgA2EUs98REYLHvcKsyzk1m49",
+        },
+        .zg = .{
+            .url = "https://codeberg.org/atman/zg/archive/v0.14.tar.gz",
+            .hash = "zg-0.14.0-oGqU3KEFswIffnDu8eAE2XlhzwcfgjwtM6akIc5L7cEV",
         },
     },
     .paths = .{
