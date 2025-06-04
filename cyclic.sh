@@ -17,6 +17,10 @@ zig build -Doptimize=Debug --release=safe
 
 PIPE=/tmp/__de_menu_cyclic_pipe
 
+function filter() {
+    tee grep -vE "^>" | xargs printf "%s"
+}
+
 rm -f $PIPE
 mkfifo $PIPE
 ./zig-out/bin/de_menu -l 5 --lines_reverse \
@@ -31,9 +35,9 @@ mkfifo $PIPE
            --set="divsign 0" \
            --set="uni off" \
            --set="uniexp 0" \
-           --set="vspace off" 1>$PIPE
-# FIXME: Figure out why piping the result of qalc
-#        via grep -vE "^>" strips all output, but
-#        when done as a standalone script it works
-#        just fine:
-#        echo "1 + 2" | qalc -c=0 -s="vspace off" | grep -vE "^>"
+           --set="vspace off" \
+    | grep --line-buffered -vE "^>" 1>$PIPE
+# NOTE: By default grep waits for a page (4KiB or 8iKB)
+#       instead of per line. Using `--line-buffered` will 
+#       tell it to buffer per-line instead (i.e. ending
+#       with a \n or \r depending on platform)

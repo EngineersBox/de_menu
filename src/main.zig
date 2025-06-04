@@ -26,8 +26,8 @@ fn run(
     config: *const Config,
     should_terminate: *volatile bool,
 ) anyerror!void {
-    var reader = stdin.reader();
     defer stdin.close();
+    var reader = stdin.reader();
     var found_eof: bool = false;
     while (!should_terminate.* and !found_eof) {
         var line = std.ArrayList(u8).init(allocator);
@@ -40,13 +40,10 @@ fn run(
                 // Assume the line has data, break later
                 found_eof = true;
             },
-            error.StreamTooLong => {
-                // Make do with what we have
-                @panic("Input stream too long");
-            },
             else => {
-                std.log.err("Error: {}", .{err});
-                @panic("Unknown error");
+                const msg: []const u8 = try std.fmt.allocPrint(allocator, "Error while reading stdin: {}", .{err});
+                defer allocator.free(msg);
+                @panic(msg);
             },
         };
         // I forgot about this originally, this gist saved me some pain and jogged my
@@ -64,7 +61,7 @@ fn run(
         if (trimmed_line.items.len == 0) {
             continue;
         }
-        std.debug.print("Stdin: {s}\n", .{trimmed_line.items});
+        std.debug.print("Stdin: \"{s}\"\n", .{trimmed_line.items});
         // NOTE: Pre-convert to a CString to avoid needing to do it
         //       repeatedly during the render loop
         try input.appendLine(try std.fmt.allocPrintZ(
