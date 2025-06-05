@@ -48,17 +48,21 @@ fn run(
         };
         // I forgot about this originally, this gist saved me some pain and jogged my
         // memory: https://gist.github.com/doccaico/4e15cacaf06279ab29c8aacb3f2c9478
-        const trimmed_line = if (builtin.target.os.tag == .windows)
+        if (builtin.target.os.tag == .windows) {
             // Nuke prefixing newlines, since we match a EOL
             // as CR on windows, which follows with LF after.
-            return line.fromOwnedSlice(
-                allocator,
-                std.mem.trimLeft(u8, try line.toOwnedSlice(), "\n"),
-            )
-        else
-            line;
-        defer trimmed_line.deinit();
-        if (trimmed_line.items.len == 0) {
+            var trimmed_line = std.ArrayList(u8).init(allocator);
+            errdefer line.deinit();
+            try trimmed_line.appendSlice(std.mem.trimLeft(
+                u8,
+                try line.toOwnedSlice(),
+                "\n"
+            ));
+            line.deinit();
+            line = trimmed_line;
+        }
+        defer line.deinit();
+        if (line.items.len == 0) {
             continue;
         }
         // NOTE: Pre-convert to a CString to avoid needing to do it
@@ -66,7 +70,7 @@ fn run(
         try input.appendLine(try std.fmt.allocPrintZ(
             allocator,
             "{s}",
-            .{trimmed_line.items},
+            .{line.items},
         ), config);
     }
 }

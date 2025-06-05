@@ -21,8 +21,10 @@ const build_zon: struct {
             hash: []const u8,
         },
         fontconfig: struct {
-            url: []const u8,
-            hash: []const u8,
+            path: []const u8,
+            lazy: bool,
+            // url: []const u8,
+            // hash: []const u8,
         },
         zg: struct {
             url: []const u8,
@@ -35,54 +37,29 @@ const SOURCE_DIR = "src/";
 const META_FILE = SOURCE_DIR ++ "meta.zig";
 
 const TARGETS = [_]std.Target.Query {
-    .{ .os_tag = .linux, .cpu_arch = .aarch64, },
-    .{ .os_tag = .linux, .cpu_arch = .x86_64, },
-    .{ .os_tag = .linux, .cpu_arch = .x86, },
+    // .{ .os_tag = .linux, .cpu_arch = .arm, },
+    // .{ .os_tag = .linux, .cpu_arch = .x86_64, },
+    // .{ .os_tag = .linux, .cpu_arch = .x86, },
 
-    .{ .os_tag = .macos, .cpu_arch = .aarch64, },
-    .{ .os_tag = .macos, .cpu_arch = .x86_64, },
+    // .{ .os_tag = .macos, .cpu_arch = .arm, },
+    // .{ .os_tag = .macos, .cpu_arch = .x86_64, },
 
-    .{ .os_tag = .windows, .cpu_arch = .aarch64, },
-    .{ .os_tag = .windows, .cpu_arch = .x86_64, },
+    // .{ .os_tag = .windows, .cpu_arch = .arm, },
+    // .{ .os_tag = .windows, .cpu_arch = .x86_64, },
+};
+
+// For dynamic linking, we prefer dynamic linking and to search by
+// mode first. Mode first will search all paths for a dynamic library
+// before falling back to static.
+const dynamic_link_opts: std.Build.Module.LinkSystemLibraryOptions = .{
+    .preferred_link_mode = .dynamic,
+    .search_strategy = .mode_first,
 };
 
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const raylib = b.dependency("raylib_zig", .{
-        .target = target,
-        .optimize = optimize,
-    });
-    const clap = b.dependency("clap", .{
-        .target = target,
-        .optimize = optimize,
-    });
-    // TODO: Remove this? Or keep it uncommented for the lols?
-    // Mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm
-    // const microwave = b.dependency("microwave", .{
-    //     .target = target,
-    //     .optimize = optimize,
-    // });
-    const fontconfig = b.dependency(
-        "fontconfig",
-        .{
-            .target = target,
-            .optimize = optimize,
-            // FIXME: The build of libxml2 in engineersbox/zig-build-libxml2
-            //        causes a segfault in the parser, so it's disabled here
-            //        and "expat" is used instead. Update the version of libxml2
-            //        in the dependent repo and all downstream deps, then
-            //        update the fontconfig dependency here and remove this.
-            // NOTE: Maybe expat is a better dep than libxml2 tbh. Have to test       
-            //       cross-compiliation though.
-            .@"enable-libxml2" = false,
-        },
-    );
-    const zg = b.dependency("zg", .{
-        .target = target,
-        .optimize = optimize,
-    });
     // const build_zon = b.createModule(.{
     //     .root_source_file = b.path("build.zig.zon"),
     //     .target = target,
@@ -97,30 +74,26 @@ pub fn build(b: *std.Build) void {
     const host_exe = create_exe(
         b,
         host_exe_mod,
+        target,
+        optimize,
         // build_zon,
-        raylib,
-        clap,
-        fontconfig,
-        zg,
     );
     host_exe.step.dependOn(writeMetaFileStep(b));
     b.installArtifact(host_exe);
 
-    // TODO: Fix libxml2 dep in order to allow cross-compilation
     // for (TARGETS) |target_query| {
+    //     const resolved_target= b.resolveTargetQuery(target_query);
     //     const exe_mod = b.createModule(.{
     //         .root_source_file = b.path("src/main.zig"),
-    //         .target = b.resolveTargetQuery(target_query),
+    //         .target = resolved_target,
     //         .optimize = optimize,
     //     });
     //     const exe = create_exe(
     //         b,
     //         exe_mod,
+    //         resolved_target,
+    //         optimize,
     //         // build_zon,
-    //         raylib,
-    //         clap,
-    //         fontconfig,
-    //         zg,
     //     );
     //     b.installArtifact(exe);
     // }
@@ -166,12 +139,48 @@ fn writeMetaFileStep(b: *std.Build) *std.Build.Step {
 fn create_exe(
     b: *std.Build,
     module: *std.Build.Module,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
     // build_zon: *std.Build.Module,
-    raylib: *std.Build.Dependency,
-    clap: *std.Build.Dependency,
-    fontconfig: *std.Build.Dependency,
-    zg: *std.Build.Dependency,
 ) *std.Build.Step.Compile {
+    // These dependencies we want to default false if we're on macOS.
+    // On macOS we don't want to use system libraries because we
+    // generally want a fat binary. This can be overridden with the
+    // `-fsys` flag.
+    for (&[_][]const u8{
+        "fontconfig",
+        "libpng",
+        "zlib",
+    }) |dep| {
+        _ = b.systemIntegrationOption(
+            dep,
+            .{
+                // If we're not on darwin we want to use whatever the
+                // default is via the system package mode
+                .default = if (target.result.os.tag.isDarwin()) false else null,
+            },
+        );
+    }
+
+    const raylib = b.dependency("raylib_zig", .{
+        .target = target,
+        .optimize = optimize,
+        // .linux_display_backend = .X11
+    });
+    const clap = b.dependency("clap", .{
+        .target = target,
+        .optimize = optimize,
+    });
+    _ = b.systemIntegrationOption("fontconfig", .{}); // Shows it in help
+    const fontconfig = b.lazyDependency("fontconfig", .{
+        .target = target,
+        .optimize = optimize,
+    }) orelse @panic("Missing fontconfig");
+
+    const zg = b.dependency("zg", .{
+        .target = target,
+        .optimize = optimize,
+    });
     const exe = b.addExecutable(.{
         .name = "de_menu",
         .root_module = module,
@@ -180,8 +189,18 @@ fn create_exe(
     // NOTE: This GitHub issue is useful for figuring
     //       out how to link stuff: https://github.com/ziglang/zig/issues/11151
     // TODO: Remove this once libxml2 support is fixed
-    exe.linkSystemLibrary("expat");
-    exe.linkLibrary(fontconfig.artifact("fontconfig"));
+    // exe.linkSystemLibrary("expat");
+    // exe.linkLibrary(fontconfig.artifact("fontconfig"));
+    exe.root_module.addImport(
+        "fontconfig",
+        fontconfig.module("fontconfig"),
+    );
+    if (b.systemIntegrationOption("fontconfig", .{})) {
+        exe.linkSystemLibrary2("fontconfig", dynamic_link_opts);
+    } else {
+        exe.linkLibrary(fontconfig.artifact("fontconfig"));
+        _ = fontconfig.artifact("fontconfig").getEmittedBin();
+    }
     // exe.root_module.addImport("build_zon", build_zon);
     exe.root_module.addImport("raylib", raylib.module("raylib"));
     exe.root_module.addImport("raygui", raylib.module("raygui"));
