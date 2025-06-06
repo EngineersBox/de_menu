@@ -59,18 +59,25 @@ with the hovered field. Pressing enter returns the selected item to stdout.
 -v, --version                   prints version information to stdout then exits
 ```
 
+## Installation
+
+There are pre-build binaries provided as releases, they can be downloaded into a discoverable location (i.e in a `PATH` location on UNIX systems).
+
 ## Build and Run
 
-Ensure you have raylib on your system and it is discoverable. Then just normal zig build shenanigans from there:
+If you prefer to build it yourself, or there is no pre-built binary for your specific system then this will do exactly that.
+
+Ensure you have raylib on your system and it is discoverable. Then just normal zig build shenanigans from there, note that the
+`INSTALL DIR` should omit the `bin/` sub-directory (i.e. `/usr/local`).
 
 ```bash
-zig build
+zig build install -p <INSTALL DIR>
 ```
 
 Run it:
 
 ```bash
-./zig-out/bin/de_menu [options ...]
+de_menu [options ...]
 ```
 
 You can move the binary to wherever you want and it'll work fine.
