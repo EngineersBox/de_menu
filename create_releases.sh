@@ -50,7 +50,7 @@ function build_and_move() {
     done
 }
 #
-build_and_move "x86_64-macos"
-build_and_move "aarch64-macos"
+build_and_move "x86_64-macos" ""
+build_and_move "aarch64-macos" ""
 build_and_move "x86_64-windows" ".exe" ".pdb"
 build_and_move "aarch64-windows" ".exe" ".pdb"
