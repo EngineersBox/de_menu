@@ -2,7 +2,6 @@ const std = @import("std");
 const builtin = @import("builtin");
 const raylib = @import("raylib");
 const raygui = @import("raygui");
-// const fontconfig = @cImport(@cInclude("fontconfig/fontconfig.h"));
 const fontconfig = @import("fontconfig");
 
 const meta = @import("meta.zig");
@@ -21,38 +20,6 @@ const WINDOW_WIDTH: comptime_int = 800;
 const WINDOW_HEIGHT: comptime_int = 600;
 
 const DELIMITER: comptime_int = if (builtin.target.os.tag == .windows) '\r' else '\n';
-
-const FontExtensions: type = enum {
-    // NOTE: Don't capitalise these, they get converted to a string
-
-    // TrueType/OpenType
-    ttf,
-    otf,
-    // BMFonts
-    fnt,
-    // XNA Sprites
-    png,
-    bmp,
-
-    pub fn matchName(
-        allocator: std.mem.Allocator,
-        name: []const u8,
-        file: []const u8,
-    ) !bool {
-        inline for (std.meta.fields(@This())) |ext| {
-            const file_name: []const u8 = try std.fmt.allocPrint(
-                allocator,
-                "{s}.{s}",
-                .{ name, ext.name },
-            );
-            defer allocator.free(file_name);
-            if (!std.mem.eql(u8, file_name, file)) {
-                return true;
-            }
-        }
-        return false;
-    }
-};
 
 fn renderHorizontal(
     _: std.mem.Allocator,
@@ -305,50 +272,6 @@ fn findFont(
     }
     std.log.debug("Unable to find font, defaulting to Raylib's internal font", .{});
     return raylib.getFontDefault();
-    // const fconfig: *fontconfig.FcConfig = fontconfig.FcInitLoadConfigAndFonts() orelse {
-    //     std.log.err("Failed to initialise fontconfig, is FONTCONFIG_PATH env var set?", .{});
-    //     return raylib.getFontDefault();
-    // };
-    // const pattern: *fontconfig.FcPattern = fontconfig.FcNameParse(font_name.ptr) orelse {
-    //     std.log.err("Failed to create font pattern", .{});
-    //     return raylib.getFontDefault();
-    // };
-    // defer fontconfig.FcPatternDestroy(pattern);
-    // if (fontconfig.FcConfigSubstitute(
-    //     fconfig,
-    //     pattern,
-    //     fontconfig.FcMatchPattern,
-    // ) == fontconfig.FcFalse) {
-    //     std.log.err("Unable to configure substitute", .{});
-    //     return raylib.getFontDefault();
-    // }
-    // fontconfig.FcDefaultSubstitute(pattern);
-    // var result: fontconfig.FcResult = undefined;
-    // const font: *fontconfig.FcPattern = fontconfig.FcFontMatch(
-    //     fconfig,
-    //     pattern,
-    //     &result,
-    // ) orelse {
-    //     std.log.err("Font not found: {s}", .{font_name});
-    //     return raylib.getFontDefault();
-    // };
-    // defer fontconfig.FcPatternDestroy(font);
-    // var file: [*c]fontconfig.FcChar8 = undefined;
-    // if (fontconfig.FcPatternGetString(
-    //     font,
-    //     fontconfig.FC_FILE,
-    //     0,
-    //     &file,
-    // ) == fontconfig.FcResultMatch) {
-    //     const file_path = try allocator.dupeZ(u8, file[0..std.mem.len(file)]);
-    //     defer allocator.free(file_path);
-    //     return try raylib.loadFontEx(
-    //         file_path,
-    //         @intFromFloat(config.font_size),
-    //         null,
-    //     );
-    // }
-    // return raylib.getFontDefault();
 }
 
 fn alignPosX(config: *Config) void {
