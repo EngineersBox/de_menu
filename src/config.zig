@@ -120,6 +120,22 @@ pub const Alignment: type = struct {
     }
 };
 
+const key_bindings =
+    \\ Key Bindings:
+    \\
+    \\    Tab
+    \\            Copy the selected item to the input field
+    \\
+    \\    Return
+    \\            Confirm selection. Prints the selected item to stdout and exits, returning success.
+    \\            If the `cyclic` flag is used, then this prints the input text to stdout and continues instead.
+    \\
+    \\    Ctrl-Return
+    \\            Confirm selection. Prints the selected item to stdout and continues
+    \\
+    \\    Shift-Return
+    \\            Confirm selection. Prints the input text to stdout and exits, returning success
+;
 pub const Config: type = struct {
     allocator: std.mem.Allocator,
 
@@ -197,13 +213,8 @@ pub const Config: type = struct {
             \\     --prompt_text_padding <f32> offset from top and bottom of the prompt text background
             \\     --line_text_offset <f32>    offset from the left side of the line text background
             \\     --line_text_padding <f32>   offset from top and bottom of the line text background
-            \\ -c, --cyclic                    when the user presses enter on the buffer, it's contents
-            \\                                 are written to stdout, the buffer is cleared and control
-            \\                                 returns to the user, acting as a buffer cycle. This allows
-            \\                                 the output of de_menu to be used elsewhere and then some
-            \\                                 transformation of it to be piped back into stdin.
-            \\                                 If escape is pressed, de_menu exits without printing to
-            \\                                 stdout
+            \\ -c, --cyclic                    causes shift-return to print the input buffer instead of the
+            \\                                 selected line to stdout and then continues instead of exiting
             \\     --no_line_select            disable the ability to fill the input buffer from a selected
             \\                                 line
             \\ -v, --version                   prints version information to stdout then exits
@@ -232,6 +243,7 @@ pub const Config: type = struct {
                 &params,
                 .{},
             );
+            try writer.writeAll("\n" ++ key_bindings);
             return null;
         } else if (res.args.version != 0) {
             var writer = std.io.getStdErr().writer();

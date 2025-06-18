@@ -73,30 +73,40 @@ pub fn handleKeypress(
         unicode_char = raylib.getCharPressed();
     }
     var progression: InputState = .CONTINUE;
-    if (heldDebounce(raylib.KeyboardKey.down)) {
+    if (heldDebounce(.down)) {
         input.shiftCursorLine(
             if (config.lines_reverse) -1 else 1,
             config.lines,
         );
-    } else if (heldDebounce(raylib.KeyboardKey.up)) {
+    } else if (heldDebounce(.up)) {
         input.shiftCursorLine(
             if (config.lines_reverse) 1 else -1,
             config.lines,
         );
-    } else if (heldDebounce(raylib.KeyboardKey.left)) {
+    } else if (heldDebounce(.left)) {
         input.shiftBufferCol(-1);
-    } else if (heldDebounce(raylib.KeyboardKey.right)) {
+    } else if (heldDebounce(.right)) {
         input.shiftBufferCol(1);
-    } else if (!config.no_line_select and raylib.isKeyPressed(raylib.KeyboardKey.tab) and debounce(KEY_PRESS_DEBOUNCE_RATE_MS)) {
+    } else if (!config.no_line_select and raylib.isKeyPressed(.tab) and debounce(KEY_PRESS_DEBOUNCE_RATE_MS)) {
         try input.selectCursorLine();
         updated_buffer = true;
-    } else if (raylib.isKeyPressed(raylib.KeyboardKey.enter) and debounce(KEY_PRESS_DEBOUNCE_RATE_MS)) {
-        progression = if (config.cyclic) .WRITE_CONTINUE else .WRITE_EXIT;
-    } else if (raylib.isKeyPressed(raylib.KeyboardKey.escape) and debounce(KEY_PRESS_DEBOUNCE_RATE_MS)) {
+    } else if (raylib.isKeyPressed(.enter) and debounce(KEY_PRESS_DEBOUNCE_RATE_MS)) {
+        if (raylib.isKeyDown(.left_shift) or raylib.isKeyDown(.right_shift)) {
+            progression = if (config.cyclic) .WRITE_CONTINUE else .WRITE_EXIT;
+        } else if (raylib.isKeyDown(.left_control) or raylib.isKeyDown(.right_control)) {
+            try input.selectCursorLine();
+            updated_buffer = true;
+            progression = .WRITE_CONTINUE;
+        } else {
+            try input.selectCursorLine();
+            updated_buffer = true;
+            progression = .WRITE_EXIT;
+        }
+    } else if (raylib.isKeyPressed(.escape) and debounce(KEY_PRESS_DEBOUNCE_RATE_MS)) {
         input.buffer.clearAndFree();
         input.buffer_col = 0;
         progression = .WRITE_EXIT;
-    } else if (heldDebounce(raylib.KeyboardKey.backspace)) {
+    } else if (heldDebounce(.backspace)) {
         if (input.buffer.items.len > 0) {
             _ = input.buffer.orderedRemove(input.buffer_col -| 1);
         }

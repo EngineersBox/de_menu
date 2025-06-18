@@ -187,6 +187,7 @@ fn renderVertical(
     const line_height: i32 = @intFromFloat(font_height + config.line_text_padding);
     var y_pos: i32 = line_height;
     const y_shift: i32 = if (config.lines_reverse) -line_height else line_height;
+    std.debug.print("Filter: {any} Len: {}\n", .{config.filter, data.buffer.items.len});
     if (config.filter == null or data.buffer.items.len == 0) {
         // Not Filtered
         const end = @min(
@@ -209,6 +210,7 @@ fn renderVertical(
                 line_height,
                 prompt_offset,
             );
+            std.debug.print("Line: {} Y Pos: {}\n", .{i, y_pos});
             y_pos += y_shift;
         }
     } else {
@@ -296,7 +298,7 @@ fn alignPosX(config: *Config) void {
     }
     config.pos_x = switch (alignment) {
         AlignmentX.LEFT => 0,
-        AlignmentX.CENTRE => @divExact(mon_width, 2) - @divTrunc(config.width.?, 2),
+        AlignmentX.CENTRE => @divTrunc(mon_width, 2) - @divTrunc(config.width.?, 2),
         AlignmentX.RIGHT => mon_width - config.width.?,
     };
 }
@@ -313,7 +315,7 @@ fn alignPosY(config: *Config, line_height: i32) void {
     const mon_height: i32 = raylib.getMonitorHeight(config.monitor.?);
     config.pos_y = switch (alignment) {
         AlignmentY.TOP => 0,
-        AlignmentY.CENTRE => @divExact(mon_height, 2) - @divTrunc(height, 2),
+        AlignmentY.CENTRE => @divTrunc(mon_height, 2) - @divTrunc(height, 2),
         AlignmentY.BOTTOM => mon_height - height,
     };
 }
